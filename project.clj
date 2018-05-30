@@ -3,7 +3,7 @@
   "http" #(org.apache.maven.wagon.providers.http.HttpWagon.))
 
 
-(defproject missing "0.1.0-SNAPSHOT"
+(defproject missing "0.1.0"
 
   :repositories
   [["releases" {:username      :env/ARTIFACTORY_USERNAME
