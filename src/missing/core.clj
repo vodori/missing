@@ -40,6 +40,11 @@
 (defn lift-by [lift f]
   (fn [& args] (apply f (map lift args))))
 
+(defn keepcat
+  ([f] (comp (map f) cat (filter some?)))
+  ([f & colls]
+   (filter some? (apply concat (apply map f colls)))))
+
 (defn intersect? [s1 s2 & ss]
   (let [intersection (sets/intersection (set s1) (set s2))]
     (if (or (empty? intersection) (empty? ss))
