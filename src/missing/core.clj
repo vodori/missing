@@ -10,10 +10,10 @@
   (edn/read-string (slurp (io/resource path))))
 
 (defn filter-keys [pred m]
-  (into {} (filter (comp pred key) m)))
+  (into {} (filter (comp pred key)) m))
 
 (defn filter-vals [pred m]
-  (into {} (filter (comp pred val) m)))
+  (into {} (filter (comp pred val)) m))
 
 (defn map-keys [f m]
   (into {} (map (fn [[k v]] [(f k) v])) m))
