@@ -3,8 +3,7 @@
             [clojure.string :as strings]
             [clojure.set :as sets]
             [clojure.edn :as edn])
-  (:import (java.io File)
-           (java.util.concurrent TimeUnit Future)))
+  (:import (java.util.concurrent TimeUnit TimeoutException Future)))
 
 
 (defn load-edn-resource [path]
@@ -117,39 +116,47 @@
                     xs seen)))]
      (step coll #{}))))
 
+(defn merge-sort
+  ([colls]
+   (merge-sort compare colls))
+  ([comp colls]
+   (let [begin-marker (Object.)
+         end-marker   (Object.)]
+     (letfn [(next-item [[_ colls]]
+               (if (nil? colls)
+                 [end-marker nil]
+                 (let [[[yield & p] & q]
+                       (sort-by first comp colls)]
+                   [yield (if p (cons p q) q)])))]
+       (->> colls
+            (vector begin-marker)
+            (iterate next-item)
+            (drop 1)
+            (map first)
+            (take-while #(not (identical? end-marker %))))))))
 
-(defn merge-sort [comp colls]
-  (let [begin-marker (Object.)
-        end-marker   (Object.)]
-    (letfn [(next-item [[_ colls]]
-              (if (nil? colls)
-                [end-marker nil]
-                (let [[[yield & p] & q]
-                      (sort-by first comp colls)]
-                  [yield (if p (cons p q) q)])))]
-      (->> colls
-           (vector begin-marker)
-           (iterate next-item)
-           (drop 1)
-           (map first)
-           (take-while #(not (identical? end-marker %)))))))
 
-
-(defmacro do-force
+(defmacro doforce
   ([] nil)
   ([x] `(try ~x (catch Exception _# nil)))
   ([x & next]
-   `(do (try ~x (catch Exception _# nil)) (do-force ~@next))))
-
-
+   `(do (try ~x (catch Exception _# nil)) (doforce ~@next))))
 
 (defmacro with-timeout [millis & body]
-  `(let [future# (future ~@body)]
-     (try (^Future .get future# ~millis TimeUnit/MILLISECONDS)
-          (catch Exception _#
-            (when-not (.isDone future#)
-              (try (future-cancel future#)
-                   (catch Exception _# nil)))))))
+  `(let [future# ^Future (future ~@body)]
+     (try [true (.get future# ~millis TimeUnit/MILLISECONDS)]
+          (catch TimeoutException _#
+            (try (if-not (future-cancel future#)
+                   [true (.get future# 0 TimeUnit/MILLISECONDS)]
+                   [false nil])
+                 (catch Exception _#
+                   [false nil]))))))
+
+(defmacro timing [& body]
+  `(let [start#  (System/currentTimeMillis)
+         result# (do ~@body)
+         stop#   (System/currentTimeMillis)]
+     [(- stop# start#) result#]))
 
 (defn run-par! [f coll]
   (run! deref (doall (map #(future (f %)) coll))))
@@ -163,14 +170,6 @@
 
 (defn get-filename [filename]
   (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
-
-(defn delete-recursively [^File file]
-  (letfn [(func [f]
-            (when (.isDirectory f)
-              (doseq [f2 (.listFiles f)]
-                (func f2)))
-            (io/delete-file f))]
-    (func file)))
 
 (defn merge-entries-with [f & ms]
   (letfn [(merge-entry [m [k v]]
