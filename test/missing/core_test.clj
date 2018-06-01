@@ -1,6 +1,7 @@
 (ns missing.core-test
   (:require [clojure.test :refer :all]
-            [missing.core :refer :all]))
+            [missing.core :refer :all])
+  (:import (java.time Duration)))
 
 
 
@@ -158,3 +159,7 @@
   (is (not (not-blank? "")))
   (is (not (not-blank? nil)))
   (is (not (not-blank? "   \n\t \r\n"))))
+
+(deftest human-readable-test
+  (is (= "2 days, 22 hours, 50 seconds, 233 milliseconds"
+         (human-readable (Duration/ofMillis 252050233)))))

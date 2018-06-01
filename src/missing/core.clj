@@ -3,7 +3,9 @@
             [clojure.string :as strings]
             [clojure.set :as sets]
             [clojure.edn :as edn])
-  (:import (java.util.concurrent TimeUnit TimeoutException Future)))
+  (:import (java.util.concurrent TimeUnit TimeoutException Future)
+           (java.util EnumSet)
+           (java.time Duration)))
 
 
 (defn load-edn-resource [path]
@@ -164,6 +166,26 @@
 (defmacro together [& expressions]
   (let [expanded (conj `~(partition 2 (interleave (repeat 'future) expressions)) 'list)]
     `(map deref (doall ~expanded))))
+
+(defn human-readable [duration]
+  (let [values (into [] (EnumSet/allOf TimeUnit))
+        lowest ^TimeUnit (get values 0)]
+    (->> values
+         (reverse)
+         (reduce
+           (fn [[^String s ^Long rem :as agg] ^TimeUnit next]
+             (let [in-unit (.convert next rem lowest)]
+               (if (pos? in-unit)
+                 (let [pass-down (- rem (.convert lowest in-unit next))
+                       base-name (strings/lower-case (apply str (butlast (.name next))))]
+                   [(->> [s (format (if (> in-unit 1) "%d %ss" "%d %s") in-unit base-name)]
+                         (remove strings/blank?)
+                         (strings/join ", "))
+                    pass-down])
+                 agg)))
+           ["" (.toNanos (if (instance? Duration duration)
+                           duration (Duration/ofMillis duration)))])
+         (first))))
 
 (defn get-extension [filename]
   (first (re-find #"(\.[^.]*)$" filename)))
