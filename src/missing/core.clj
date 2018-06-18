@@ -205,12 +205,21 @@
 (defn subsets [coll]
   (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
 
+(defn indexcat-by [f coll]
+  (reduce #(apply assoc %1 (interleave (f %2) (repeat %2))) {} coll))
+
+(defn groupcat-by [f coll]
+  (-> (fn [agg x]
+        (-> (fn [agg* k]
+              (update agg* k (fnil conj []) x))
+            (reduce agg (f x))))
+      (reduce {} coll)))
+
+(defn labels [f x]
+  (->> x (f) (seq) (subsets) (map (partial into {})) (set)))
+
+(defn index-by-labels [f coll]
+  (indexcat-by (partial labels f) coll))
+
 (defn group-by-labels [f coll]
-  (letfn [(label-sets [resource]
-            (-> resource (f) (seq) (subsets)))
-          (join [agg resource]
-            (loop [updated agg sets (label-sets resource)]
-              (if-let [next-set (first sets)]
-                (recur (update updated (into {} next-set) (fnil conj []) resource) (rest sets))
-                updated)))]
-    (reduce join {} coll)))
+  (groupcat-by (partial labels f) coll))
