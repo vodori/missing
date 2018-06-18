@@ -163,3 +163,17 @@
 (deftest human-readable-test
   (is (= "2 days, 22 hours, 50 seconds, 233 milliseconds"
          (human-readable (Duration/ofMillis 252050233)))))
+
+(deftest powerset-test
+  (is (= #{#{} #{1} #{2} #{3} #{1 2} #{1 3} #{2 3} #{1 2 3}} (subsets #{1 2 3}))))
+
+(deftest group-by-labels-test
+  (let [maps    [{:labels {:one 1 :two 2 :three 3 :four 5}}
+                 {:labels {:one 2 :two 2 :three 4 :four 5}}]
+        grouped (group-by-labels :labels maps)]
+    (is (nil? (get grouped {:bananas true})))
+    (is (= [(first maps)] (get grouped {:one 1})))
+    (is (= maps (get grouped {})))
+    (is (= maps (get grouped {:two 2})))
+    (is (= maps (get grouped {:two 2 :four 5})))
+    (is (= [(second maps)] (get grouped {:three 4})))))

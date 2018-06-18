@@ -201,3 +201,16 @@
           (merge-entries [m1 m2]
             (reduce merge-entry (or m1 {}) (seq m2)))]
     (reduce merge-entries {} ms)))
+
+(defn subsets [coll]
+  (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
+
+(defn group-by-labels [f coll]
+  (letfn [(label-sets [resource]
+            (-> resource (f) (seq) (subsets)))
+          (join [agg resource]
+            (loop [updated agg sets (label-sets resource)]
+              (if-let [next-set (first sets)]
+                (recur (update updated (into {} next-set) (fnil conj []) resource) (rest sets))
+                updated)))]
+    (reduce join {} coll)))
