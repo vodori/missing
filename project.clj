@@ -3,7 +3,7 @@
   "http" #(org.apache.maven.wagon.providers.http.HttpWagon.))
 
 
-(defproject com.vodori.pepper/missing "0.1.6"
+(defproject com.vodori.pepper/missing "0.1.7-SNAPSHOT"
 
   :repositories
   [["releases" {:username      :env/ARTIFACTORY_USERNAME
