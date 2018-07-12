@@ -16,10 +16,10 @@
 (defn- inc-or-new [lock]
   (or (inc-lock lock) (new-lock)))
 
-(defn- lease [k]
+(defn lease [k]
   (get-in (swap! *locks* update k inc-or-new) [k :ref]))
 
-(defn- release [k]
+(defn release [k]
   (swap! *locks*
          (fn [locks]
            (when-some [entry (dec-lock (get locks k))]
