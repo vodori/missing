@@ -215,11 +215,11 @@
             (reduce agg (f x))))
       (reduce {} coll)))
 
-(defn labels [f x]
-  (->> x (f) (seq) (subsets) (map (partial into {})) (set)))
+(defn submaps [m]
+  (->> m (seq) (subsets) (map (partial into {})) (set)))
 
 (defn index-by-labels [f coll]
-  (indexcat-by (partial labels f) coll))
+  (indexcat-by (comp submaps f) coll))
 
 (defn group-by-labels [f coll]
-  (groupcat-by (partial labels f) coll))
+  (groupcat-by (comp submaps f) coll))
