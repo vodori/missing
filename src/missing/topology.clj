@@ -20,6 +20,9 @@
 (defn normalize [g]
   (reduce (fn [agg next] (update agg next (fnil set #{}))) g (nodes g)))
 
+(defn traversal [g root]
+  (tree-seq #(not-empty (get g %)) #(get g %) root))
+
 (defn topological-sort
   ([g]
    (let [normalized (normalize g)]
@@ -32,3 +35,24 @@
            m  (g n)
            g' (reduce #(update-in % [n] disj %2) g m)]
        (recur g' (conj l n) (sets/union s' (sets/intersection (no-incoming g') m)))))))
+
+(defn topological-sort-with-grouping [g]
+  (let [normalized (normalize g)]
+    (loop [nodes (no-incoming normalized) counts {} level 0]
+      (if (not-empty nodes)
+        (recur (mapcat normalized nodes)
+               (reduce (fn [agg node]
+                         (if-some [existing (get agg node)]
+                           (let [new-count (max existing level)]
+                             (if (not= existing new-count)
+                               (let [delta (- new-count existing)]
+                                 (->> (traversal normalized node)
+                                      (remove (partial = node))
+                                      (reduce (fn [agg next] (update agg next (fnil + 0) delta)) agg)))
+                               agg))
+                           (assoc agg node level)))
+                       counts nodes)
+               (inc level))
+        (->> (topological-sort normalized)
+             (partition-by counts)
+             (map set))))))

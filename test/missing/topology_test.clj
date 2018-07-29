@@ -29,3 +29,7 @@
 (deftest topological-sort-test
   (let [g {:a [:b :c] :b [:d]}]
     (is (= [:a :c :b :d] (topological-sort g)))))
+
+(deftest topological-sort-with-grouping-test
+  (let [g {:a [:b :c] :b [:d]}]
+    (is (= [#{:a} #{:c :b} #{:d}] (topological-sort-with-grouping g)))))
