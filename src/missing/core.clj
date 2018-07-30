@@ -41,6 +41,9 @@
 (defn lift-by [lift f]
   (fn [& args] (apply f (map lift args))))
 
+(defn flip [f]
+  (fn [& args] (apply f (reverse args))))
+
 (defn keepcat
   ([f] (comp (map f) cat (filter some?)))
   ([f & colls]
