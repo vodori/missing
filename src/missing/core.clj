@@ -208,6 +208,9 @@
 (defn subsets [coll]
   (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
 
+(defn submaps [m]
+  (->> m (seq) (subsets) (map (partial into {})) (set)))
+
 (defn indexcat-by [f coll]
   (reduce #(apply assoc %1 (interleave (f %2) (repeat %2))) {} coll))
 
@@ -217,9 +220,6 @@
               (update agg* k (fnil conj []) x))
             (reduce agg (f x))))
       (reduce {} coll)))
-
-(defn submaps [m]
-  (->> m (seq) (subsets) (map (partial into {})) (set)))
 
 (defn index-by-labels [f coll]
   (indexcat-by (comp submaps f) coll))
