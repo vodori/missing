@@ -135,7 +135,7 @@
             (if (= prior nv)
               result
               (rf result input))))))))
-  ([f coll] (sequence (dedupe f) coll)))
+  ([f coll] (sequence (dedupe-by f) coll)))
 
 (defn least-by [f coll]
   (letfn [(inner-least-by
