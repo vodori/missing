@@ -121,6 +121,44 @@
                     xs seen)))]
      (step coll #{}))))
 
+(defn dedupe-by
+  ([f]
+   (fn [rf]
+     (let [pv (volatile! ::none)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [prior @pv
+                nv    (f input)]
+            (vreset! pv nv)
+            (if (= prior nv)
+              result
+              (rf result input))))))))
+  ([f coll] (sequence (dedupe) coll)))
+
+(defn least-by [f coll]
+  (letfn [(inner-least-by
+            ([_] nil)
+            ([_ a] a)
+            ([f a b] (if (neg? (compare (f a) (f b))) a b))
+            ([f a b & more] (reduce (partial least-by f) (inner-least-by f a b) more)))]
+    (apply inner-least-by f coll)))
+
+(defn greatest-by [f coll]
+  (letfn [(inner-greatest-by
+            ([_] nil)
+            ([_ a] a)
+            ([f a b] (if (pos? (compare (f a) (f b))) a b))
+            ([f a b & more] (reduce (partial greatest-by f) (inner-greatest-by f a b) more)))]
+    (apply inner-greatest-by f coll)))
+
+(defn least [coll]
+  (least-by identity coll))
+
+(defn greatest [coll]
+  (greatest-by identity coll))
+
 (defn merge-sort
   ([colls]
    (merge-sort compare colls))

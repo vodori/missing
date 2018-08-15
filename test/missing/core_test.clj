@@ -177,3 +177,13 @@
     (is (= maps (get grouped {:two 2})))
     (is (= maps (get grouped {:two 2 :four 5})))
     (is (= [(second maps)] (get grouped {:three 4})))))
+
+(deftest greatest-by-test
+  (let [data [{:one 1 :two 2} {:one 2 :two 1}]]
+    (is (= (first data) (greatest-by :two data)))
+    (is (= (second data) (greatest-by :one data)))))
+
+(deftest least-by-test
+  (let [data [{:one 1 :two 2} {:one 2 :two 1}]]
+    (is (= (first data) (least-by :one data)))
+    (is (= (second data) (least-by :two data)))))
