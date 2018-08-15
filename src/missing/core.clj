@@ -142,7 +142,7 @@
             ([_] nil)
             ([_ a] a)
             ([f a b] (if (neg? (compare (f a) (f b))) a b))
-            ([f a b & more] (reduce (partial least-by f) (inner-least-by f a b) more)))]
+            ([f a b & more] (reduce (partial inner-least-by f) (inner-least-by f a b) more)))]
     (apply inner-least-by f coll)))
 
 (defn greatest-by [f coll]
@@ -150,7 +150,7 @@
             ([_] nil)
             ([_ a] a)
             ([f a b] (if (pos? (compare (f a) (f b))) a b))
-            ([f a b & more] (reduce (partial greatest-by f) (inner-greatest-by f a b) more)))]
+            ([f a b & more] (reduce (partial inner-greatest-by f) (inner-greatest-by f a b) more)))]
     (apply inner-greatest-by f coll)))
 
 (defn least [coll]
