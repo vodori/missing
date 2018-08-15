@@ -137,11 +137,24 @@
               (rf result input))))))))
   ([f coll] (sequence (dedupe-by f) coll)))
 
+
+(defn lt [a b]
+  (neg? (compare a b)))
+
+(defn lte [a b]
+  (not (pos? (compare a b))))
+
+(defn gt [a b]
+  (pos? (compare a b)))
+
+(defn gte [a b]
+  (not (neg? (compare a b))))
+
 (defn least-by [f coll]
   (letfn [(inner-least-by
             ([_] nil)
             ([_ a] a)
-            ([f a b] (if (neg? (compare (f a) (f b))) a b))
+            ([f a b] (if (lt (f a) (f b)) a b))
             ([f a b & more] (reduce (partial inner-least-by f) (inner-least-by f a b) more)))]
     (apply inner-least-by f coll)))
 
@@ -149,7 +162,7 @@
   (letfn [(inner-greatest-by
             ([_] nil)
             ([_ a] a)
-            ([f a b] (if (pos? (compare (f a) (f b))) a b))
+            ([f a b] (if (gt (f a) (f b)) a b))
             ([f a b & more] (reduce (partial inner-greatest-by f) (inner-greatest-by f a b) more)))]
     (apply inner-greatest-by f coll)))
 
