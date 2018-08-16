@@ -4,7 +4,7 @@
             [clojure.set :as sets]
             [clojure.edn :as edn])
   (:import (java.util.concurrent TimeUnit TimeoutException Future)
-           (java.util EnumSet)
+           (java.util EnumSet UUID)
            (java.time Duration)))
 
 
@@ -191,6 +191,18 @@
             (map first)
             (take-while #(not (identical? end-marker %))))))))
 
+(defn contiguous-by
+  ([f-start f-stop]
+    (let [state (volatile! {:chunk (UUID/randomUUID) :range [nil nil]})]
+      (partition-by
+        (fn [item]
+          (let [[prev-start prev-stop] (:range (deref state))
+                [next-start next-stop] ((juxt f-start f-stop) item)]
+            (-> (if (and prev-start prev-stop (gte next-start prev-start) (lte next-start prev-stop))
+                  (vswap! state assoc :range [prev-start next-stop])
+                  (vswap! state assoc :range [next-start next-stop] :chunk (UUID/randomUUID)))
+                (get :chunk)))))))
+  ([f-start f-stop coll] (sequence (contiguous-by f-start f-stop) coll)))
 
 (defmacro doforce
   ([] nil)

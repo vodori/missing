@@ -187,3 +187,8 @@
   (let [data [{:one 1 :two 2} {:one 2 :two 1}]]
     (is (= (first data) (least-by :one data)))
     (is (= (second data) (least-by :two data)))))
+
+(deftest contiguous-by-test
+  (let [data [{:startIndex 0 :stopIndex 20} {:startIndex 5 :stopIndex 26} {:startIndex 28 :stopIndex 50}]]
+    (is (= [[{:startIndex 0 :stopIndex 20} {:startIndex 5 :stopIndex 26}] [{:startIndex 28 :stopIndex 50}]]
+           (contiguous-by :startIndex :stopIndex data)))))
