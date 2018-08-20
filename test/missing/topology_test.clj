@@ -32,4 +32,30 @@
 
 (deftest topological-sort-with-grouping-test
   (let [g {:a [:b :c] :b [:d]}]
-    (is (= [#{:a} #{:c :b} #{:d}] (topological-sort-with-grouping g)))))
+    (is (= [#{:a} #{:c :b} #{:d}]
+           (topological-sort-with-grouping g))))
+
+  (let [g {:a [:b :c] :b [:d] :c [:d]}]
+    (is (= [#{:a} #{:c :b} #{:d}]
+           (topological-sort-with-grouping g))))
+
+  (let [g {:a [:b :m] :b [:c] :c [:d] :d [:e] :m [:e]}]
+    (is (= [#{:a} #{:m :b} #{:c} #{:d} #{:e}]
+           (topological-sort-with-grouping g))))
+
+  (let [g {:a [:b :c]
+           :b [:d :e]
+           :c [:e :d]
+           :e [:f]
+           :d [:f]}]
+    (is (= [#{:a} #{:c :b} #{:e :d} #{:f}]
+           (topological-sort-with-grouping g))))
+
+  (let [g {:a [:b :c :l]
+           :b [:d :e :m]
+           :c [:e :d :m]
+           :d [:f]
+           :e [:f]
+           :l [:d :e]}]
+    (is (= [#{:a} #{:l :c :b} #{:m :e :d} #{:f}]
+           (topological-sort-with-grouping g)))))
