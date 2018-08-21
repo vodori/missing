@@ -7,6 +7,8 @@
            (java.util EnumSet UUID)
            (java.time Duration)))
 
+(defn uuid []
+  (str (UUID/randomUUID)))
 
 (defn load-edn-resource [path]
   (edn/read-string (slurp (io/resource path))))
@@ -193,22 +195,26 @@
 
 (defn contiguous-by
   ([f-start f-stop]
-    (let [state (volatile! {:chunk (UUID/randomUUID) :range [nil nil]})]
-      (partition-by
-        (fn [item]
-          (let [[prev-start prev-stop] (:range (deref state))
-                [next-start next-stop] ((juxt f-start f-stop) item)]
-            (-> (if (and prev-start prev-stop (gte next-start prev-start) (lte next-start prev-stop))
-                  (vswap! state assoc :range [prev-start next-stop])
-                  (vswap! state assoc :range [next-start next-stop] :chunk (UUID/randomUUID)))
-                (get :chunk)))))))
+   (let [state (volatile! [nil nil])]
+     (partition-by
+       (fn [item]
+         (let [[prev-start prev-stop] (deref state)
+               [next-start next-stop] ((juxt f-start f-stop) item)]
+           (-> (if (and prev-start prev-stop
+                        (gte next-start prev-start)
+                        (lte next-start prev-stop))
+                 (vreset! state [prev-start next-stop])
+                 (vreset! state [next-start next-stop]))
+               (first)))))))
   ([f-start f-stop coll] (sequence (contiguous-by f-start f-stop) coll)))
+
+(defmacro quietly [& body]
+  `(try ~@body (catch Throwable _# nil)))
 
 (defmacro doforce
   ([] nil)
-  ([x] `(try ~x (catch Exception _# nil)))
-  ([x & next]
-   `(do (try ~x (catch Exception _# nil)) (doforce ~@next))))
+  ([x] `(quietly ~x))
+  ([x & next] `(do (quietly ~x) (doforce ~@next))))
 
 (defmacro with-timeout [millis & body]
   `(let [future# ^Future (future ~@body)]
@@ -261,12 +267,26 @@
 
 (defn merge-entries-with [f & ms]
   (letfn [(merge-entry [m [k v]]
-            (if (contains? m k)
-              (assoc m k (f k (get m k) v))
-              (assoc m k v)))
-          (merge-entries [m1 m2]
-            (reduce merge-entry (or m1 {}) (seq m2)))]
+            (let [additional-entries (f k (get m k) v)]
+              (reduce (fn [m* [k* v*]] (assoc m* k* v*)) m (or additional-entries []))))
+          (merge-entries [m1 m2] (reduce merge-entry (or m1 {}) (seq m2)))]
     (reduce merge-entries {} ms)))
+
+(defn merge+ [& maps]
+  (letfn [(merger [k v1 v2]
+            (cond
+              (and (set? v1) (set? v2)) [k (sets/union v1 v2)]
+              (set? v1) [k (conj v1 v2)]
+              :otherwise [k v2]))]
+    (apply merge-entries-with merger maps)))
+
+(defn merge- [& maps]
+  (letfn [(merger [k v1 v2]
+            (cond
+              (and (set? v1) (set? v2)) [k (sets/difference v1 v2)]
+              (set? v1) [k (disj v1 v2)]
+              :otherwise []))]
+    (apply merge-entries-with merger maps)))
 
 (defn subsets [coll]
   (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
