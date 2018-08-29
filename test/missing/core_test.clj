@@ -46,6 +46,11 @@
   (is (not (intersect? #{1} #{2} #{3})))
   (is (not (intersect? #{1 2} #{2} #{3}))))
 
+(deftest exclusive?-test
+  (is (not (exclusive? #{1 2} #{2} #{2 3})))
+  (is (exclusive? #{1} #{2} #{3}))
+  (is (exclusive? #{1 2} #{3} #{4 5})))
+
 (deftest keepcat-test
   (let [coll [[1 2 3 nil nil 4] [nil 5 6]]]
     (is (= [1 2 3 4 5 6] (into [] (keepcat identity) coll)))

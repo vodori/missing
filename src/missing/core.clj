@@ -57,6 +57,13 @@
       (not-empty? intersection)
       (recur intersection (first ss) (rest ss)))))
 
+(defn exclusive? [s1 s2 & ss]
+  (let [set1 (set s1) set2 (set s2)]
+    (cond
+      (intersect? set1 set2) false
+      (empty? ss) true
+      :otherwise (recur (sets/union set1 set2) (first ss) (rest ss)))))
+
 (defn shared-keys [m1 m2 & ms]
   (apply sets/intersection (map (comp set keys) (concat [m1 m2] ms))))
 
@@ -141,6 +148,7 @@
 
 
 (defn lt
+  "Like < but for comparables."
   ([_] true)
   ([a b] (neg? (compare a b)))
   ([a b & more]
@@ -151,6 +159,7 @@
      false)))
 
 (defn lte
+  "Like <= but for comparables."
   ([_] true)
   ([a b] (not (pos? (compare a b))))
   ([a b & more]
@@ -161,6 +170,7 @@
      false)))
 
 (defn gt
+  "Like > but for comparables."
   ([_] true)
   ([a b] (pos? (compare a b)))
   ([a b & more]
@@ -171,6 +181,7 @@
      false)))
 
 (defn gte
+  "Like >= but for comparables."
   ([_] true)
   ([a b] (not (neg? (compare a b))))
   ([a b & more]
@@ -221,12 +232,14 @@
 
 (defn contiguous-by
   ([f-start f-stop]
-   (let [state (volatile! [nil nil])]
+   (let [sentinel (Object.)
+         state    (volatile! [sentinel sentinel])]
      (partition-by
        (fn [item]
          (let [[prev-start prev-stop] (deref state)
                [next-start next-stop] ((juxt f-start f-stop) item)]
-           (-> (if (and (some? prev-start) (some? prev-stop)
+           (-> (if (and (not (identical? prev-start sentinel))
+                        (not (identical? prev-stop sentinel))
                         (gte prev-stop next-start prev-start))
                  (vreset! state [(least [prev-start next-start])
                                  (greatest [prev-stop next-stop])])
