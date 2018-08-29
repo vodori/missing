@@ -64,14 +64,6 @@
       (empty? ss) true
       :otherwise (recur (sets/union set1 set2) (first ss) (rest ss)))))
 
-(defn shared-keys [m1 m2 & ms]
-  (apply sets/intersection (map (comp set keys) (concat [m1 m2] ms))))
-
-(defn shared-entries [m1 m2 & ms]
-  (let [maps (concat [m1 m2] ms)
-        keys (apply shared-keys maps)]
-    (map #(select-keys % keys) maps)))
-
 (defn deep-merge [& maps]
   (letfn [(inner-merge [& maps]
             (let [ms (remove nil? maps)]
