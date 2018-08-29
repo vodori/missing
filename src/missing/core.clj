@@ -140,33 +140,59 @@
   ([f coll] (sequence (dedupe-by f) coll)))
 
 
-(defn lt [a b]
-  (neg? (compare a b)))
+(defn lt
+  ([_] true)
+  ([a b] (neg? (compare a b)))
+  ([a b & more]
+   (if (lt a b)
+     (if (next more)
+       (recur b (first more) (next more))
+       (lt b (first more)))
+     false)))
 
-(defn lte [a b]
-  (not (pos? (compare a b))))
+(defn lte
+  ([_] true)
+  ([a b] (not (pos? (compare a b))))
+  ([a b & more]
+   (if (lte a b)
+     (if (next more)
+       (recur b (first more) (next more))
+       (lte b (first more)))
+     false)))
 
-(defn gt [a b]
-  (pos? (compare a b)))
+(defn gt
+  ([_] true)
+  ([a b] (pos? (compare a b)))
+  ([a b & more]
+   (if (gt a b)
+     (if (next more)
+       (recur b (first more) (next more))
+       (gt b (first more)))
+     false)))
 
-(defn gte [a b]
-  (not (neg? (compare a b))))
+(defn gte
+  ([_] true)
+  ([a b] (not (neg? (compare a b))))
+  ([a b & more]
+   (if (gte a b)
+     (if (next more)
+       (recur b (first more) (next more))
+       (gte b (first more)))
+     false)))
 
 (defn least-by [f coll]
-  (letfn [(inner-least-by
-            ([_] nil)
-            ([_ a] a)
-            ([f a b] (if (lt (f a) (f b)) a b))
-            ([f a b & more] (reduce (partial inner-least-by f) (inner-least-by f a b) more)))]
-    (apply inner-least-by f coll)))
+  (letfn [(inner-least
+            ([] nil)
+            ([a] a)
+            ([a b] (if (lt (f a) (f b)) a b)))]
+    (reduce inner-least coll)))
 
 (defn greatest-by [f coll]
-  (letfn [(inner-greatest-by
-            ([_] nil)
-            ([_ a] a)
-            ([f a b] (if (gt (f a) (f b)) a b))
-            ([f a b & more] (reduce (partial inner-greatest-by f) (inner-greatest-by f a b) more)))]
-    (apply inner-greatest-by f coll)))
+  (letfn [(inner-greatest
+            ([] nil)
+            ([a] a)
+            ([a b] (if (gt (f a) (f b)) a b)))]
+    (reduce inner-greatest coll)))
 
 (defn least [coll]
   (least-by identity coll))
@@ -200,13 +226,14 @@
        (fn [item]
          (let [[prev-start prev-stop] (deref state)
                [next-start next-stop] ((juxt f-start f-stop) item)]
-           (-> (if (and prev-start prev-stop
-                        (gte next-start prev-start)
-                        (lte next-start prev-stop))
-                 (vreset! state [prev-start next-stop])
+           (-> (if (and (some? prev-start) (some? prev-stop)
+                        (gte prev-stop next-start prev-start))
+                 (vreset! state [(least [prev-start next-start])
+                                 (greatest [prev-stop next-stop])])
                  (vreset! state [next-start next-stop]))
                (first)))))))
-  ([f-start f-stop coll] (sequence (contiguous-by f-start f-stop) coll)))
+  ([f-start f-stop coll]
+   (sequence (contiguous-by f-start f-stop) coll)))
 
 (defmacro quietly [& body]
   `(try ~@body (catch Throwable _# nil)))
