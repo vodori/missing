@@ -1,36 +1,25 @@
-(require 'cemerick.pomegranate.aether)
-(cemerick.pomegranate.aether/register-wagon-factory!
-  "http" #(org.apache.maven.wagon.providers.http.HttpWagon.))
+(defproject com.vodori/missing "0.1.18-SNAPSHOT"
+  :description "A utility library for Clojure of functions and macros that are frequently missed and recreated."
 
+  :url
+  "https://github.com/vodori/missing"
 
-(defproject com.vodori.pepper/missing "0.1.18-SNAPSHOT"
+  :license
+  {:name "MIT License" :url "http://opensource.org/licenses/MIT" :year 2018 :key "mit"}
 
-  :repositories
-  [["releases" {:username      :env/ARTIFACTORY_USERNAME
-                :password      :env/ARTIFACTORY_PASSWORD
-                :sign-releases false
-                :url           "http://artifactory.vodori.com/artifactory/libs-release-local/"}]
+  :scm
+  {:name "git" :url "https://github.com/vodori/missing"}
 
-   ["snapshots" {:username      :env/ARTIFACTORY_USERNAME
-                 :password      :env/ARTIFACTORY_PASSWORD
-                 :sign-releases false
-                 :url           "http://artifactory.vodori.com/artifactory/libs-snapshot-local/"}]]
+  :pom-addition
+  [:developers
+   [:developer
+    [:name "Paul Rutledge"]
+    [:url "https://github.com/rutledgepaulv"]
+    [:email "rutledgepaulv@gmail.com"]
+    [:timezone "-5"]]]
 
-  :dependencies
-  [[org.clojure/clojure "1.9.0"]]
+  :deploy-repositories
+  [["releases" {:url "https://oss.sonatype.org/service/local/staging/deploy/maven2/" :creds :gpg}
+    "snapshots" {:url "https://oss.sonatype.org/content/repositories/snapshots/" :creds :gpg}]]
 
-  :plugins
-  [[test2junit "1.2.2"]]
-
-  :release-tasks
-  [["vcs" "assert-committed"]
-   ["change" "version" "leiningen.release/bump-version" "release"]
-   ["vcs" "commit"]
-   ["vcs" "tag" "--no-sign"]
-   ["deploy"]
-   ["change" "version" "leiningen.release/bump-version"]
-   ["vcs" "commit"]
-   ["vcs" "push"]]
-
-  :test2junit-output-dir
-  "target/test-reports")
+  :dependencies [[org.clojure/clojure "1.10.0-alpha7"]])
