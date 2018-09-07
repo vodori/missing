@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/vodori/missing.svg?branch=develop)](https://travis-ci.org/vodori/missing)
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.vodori/missing/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.vodori/missing)
+[![Maven metadata URL](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/vodori/missing/maven-metadata.xml.svg)](https://mvnrepository.com/artifact/com.vodori/missing)
 
 
 ### Missing
