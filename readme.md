@@ -3,7 +3,7 @@
 
 ### Missing
 
-A utility library for Clojure of functions and macros that complement clojure.core
+A utility library for Clojure of functions and macros that complement clojure.core.
 
 ### Install
 

@@ -27,14 +27,20 @@
                (dissoc locks k)
                (assoc locks k entry))))))
 
-(defmacro locking [value & body]
+(defmacro locking
+  "Lock on a value and only after obtaining the lock execute the body."
+  [value & body]
   `(let [v# ~value]
      (try
        (clj/locking (lease v#) ~@body)
        (finally (release v#)))))
 
-(defmacro with-locks [locks & body]
+(defmacro with-locks
+  "Set the lock system to be used for any nested forms."
+  [locks & body]
   `(binding [*locks* ~locks] ~@body))
 
-(defmacro with-own-locks [& body]
+(defmacro with-own-locks
+  "Set the lock system to a new (dedicated) system to be used for any nested forms."
+  [& body]
   `(binding [*locks* (atom {})] ~@body))

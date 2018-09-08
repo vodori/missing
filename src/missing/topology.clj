@@ -24,6 +24,7 @@
   (tree-seq #(not-empty (get g %)) #(get g %) root))
 
 (defn topological-sort
+  "Apply a topological sort to an adjacency map"
   ([g]
    (let [normalized (normalize g)]
      (topological-sort normalized [] (no-incoming normalized))))
@@ -36,7 +37,9 @@
            g' (reduce #(update-in % [n] disj %2) g m)]
        (recur g' (conj l n) (sets/union s' (sets/intersection (no-incoming g') m)))))))
 
-(defn topological-sort-with-grouping [g]
+(defn topological-sort-with-grouping
+  "Apply a topological sort to an adjacency map and partition items into sets when order is arbitrary."
+  [g]
   (let [normalized (normalize g)]
     (loop [nodes (no-incoming normalized) counts {} level 0]
       (if (not-empty nodes)
