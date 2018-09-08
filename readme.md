@@ -13,6 +13,9 @@ A utility library for Clojure of functions and macros that are frequently missed
 
 ### Sample usages
 
+Below are some examples of functions available in this library. For 
+a full indication of what the library supports, please see the tests.
+
 ___
 
 
@@ -39,6 +42,21 @@ for is the smallest or largest item, you shouldn't have to sort your sequence.
 
 ___
 
+#### Concurrent execution of forms
+
+A little macro sugar on top of future to execute 
+multiple independent tasks concurrently and return
+a sequence of their results.
+
+```clojure 
+
+(require '[missing.core :refer :all])
+
+(zipmap [:users :posts] (together (get-users) (get-posts)))
+
+```
+
+___
 
 #### Indexing collections into maps
 
@@ -103,7 +121,7 @@ two parts of your program never interact on behalf of the same value at the same
     (locking "user-id"
         (get-user "user-id")))
 
-(with-locks read-locks 
+(with-locks write-locks 
     (locking "user-id"
         (update-user (fn [user] (assoc user :email "new-email@gmail.com"))))
 
@@ -115,7 +133,7 @@ ___
 
 #### Transducers: distinct-by and dedupe-by
 
-The `xxx-by` transducers are, in my opinion, always preferable to a xxx transducer.
+The `xxx-by` transducers are, in my opinion, always preferable to a `xxx` transducer.
 The reason being that `xxx-by` degrades into `xxx` when `f` is `identity` and so is 
 equivalent but more powerful.
 
@@ -136,7 +154,8 @@ ___
 
 Sometimes you have a sequence of elements that are potentially overlapping / abutting. You
 might want to merge these segments into one item instead. This transducer just wraps 
-partition-by with one-dimensional overlap tracking to chunk the sequence into contiguous segments.
+partition-by with one-dimensional overlap tracking to chunk the sequence into contiguous 
+segments. It works on comparables, not just numbers, and is lazy.
 
 ```clojure 
 
