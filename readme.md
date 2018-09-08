@@ -164,7 +164,7 @@ segments. It works on any comparables and is lazy.
 (def flat [{:x1 0 :x2 4} {:x1 1 :x2 5} {:x1 5 :x2 6} {:x1 10 :x2 12}])
 
 (contiguous-by :x1 :x2 flat)
-;=> [[{:x1 0 :x2 4} {:x1 1 :x2 5} {:x1 5 :x2 6}] {:x1 10 :x2 12}]
+;=> [[{:x1 0 :x2 4} {:x1 1 :x2 5} {:x1 5 :x2 6}] [{:x1 10 :x2 12}]]
 
 ; after this you'll probably perform a map to merge the
 ; contiguous items in each partition into one element
