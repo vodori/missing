@@ -3,7 +3,7 @@
 
 ### Missing
 
-A utility library for Clojure of functions and macros that are frequently missed and recreated.
+A utility library for Clojure of functions and macros that complement clojure.core
 
 ### Install
 
@@ -101,7 +101,7 @@ ___
 
 Clojure has lots of great ways to deal with state. Reference locking is probably 
 least among them but if the use case is isolated it's sometimes the easiest. Missing 
-provides re-entrant locks that lock on values. This provides a simple way to ensure
+provides reentrant locks that lock on values. This provides a simple way to ensure
 two parts of your program never interact on behalf of the same value at the same time.
 
 ```clojure 
@@ -155,7 +155,7 @@ ___
 Sometimes you have a sequence of elements that are potentially overlapping / abutting. You
 might want to merge these segments into one item instead. This transducer just wraps 
 partition-by with one-dimensional overlap tracking to chunk the sequence into contiguous 
-segments. It works on comparables, not just numbers, and is lazy.
+segments. It works on any comparables and is lazy.
 
 ```clojure 
 
