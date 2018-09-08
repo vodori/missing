@@ -55,7 +55,7 @@
 
 (defn contains-all? [coll keys]
   (let [ks (set keys)]
-    (= keys (sets/intersection (set (seq coll)) ks))))
+    (= ks (sets/intersection (set (seq coll)) ks))))
 
 (defn lift-by
   "Returns a function that first applies the lift to each argument before applying the original function."
