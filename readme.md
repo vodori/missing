@@ -40,21 +40,92 @@ for is the smallest or largest item, you shouldn't have to sort your sequence.
 ___
 
 
+#### Indexing collections into maps
+
+Use these when you're building lookup tables to efficiently perform
+batch operations.
+
+```clojure 
+
+(require '[missing.core :refer :all])
+
+(def users 
+    (index-by :username 
+        [{:username "fred" :email "fred@gmail.com"} 
+         {:username "greg" :email "greg@gmail.com"}])
+
+(get users "fred") 
+;=> {:username "fred" :email "fred@gmail.com"}
+
+
+(def resources 
+  [{:meta {:app "sso" :version "2018-10" :stage "dev"}}
+   {:meta {:app "db" :version "2018-07" :stage "prod"}}
+   {:meta {:app "api" :version "2018-07" :stage "dev"}}])
+    
+(def table (group-by-labels :meta resources))
+
+(get table {:version "2018-10"})
+;=> [{:meta {:app "sso" :version "2018-10" :stage "dev"}}]
+
+(get table {:stage "dev"}) 
+;=> [{:meta {:app "sso" :version "2018-10" :stage "dev"}}
+;    {:meta {:app "api" :version "2018-07" :stage "dev"}}]
+
+(get table {:version "2018-07" :stage "dev"}) 
+;=> [{:meta {:app "api" :version "2018-07" :stage "dev"}}]
+
+```
+
+___
+
+#### Locking by value
+
+Clojure has lots of great ways to deal with state. Reference locking is probably 
+least among them but if the use case is isolated it's sometimes the easiest. Missing 
+provides re-entrant locks that lock on values. This provides a simple way to ensure
+two parts of your program never interact on behalf of the same value at the same time.
+
+```clojure 
+
+(require '[missing.locks :refer :all])
+
+(locking "user-id"
+  (update-user (fn [user] (assoc user :email "new-email@gmail.com")))
+
+; you can also subdivide the exclusive scope by wrapping 
+; evaluation with your own lock tables.
+
+(def read-locks (atom {}))
+(def write-locks (atom {}))
+
+(with-locks read-locks 
+    (locking "user-id"
+        (get-user "user-id")))
+
+(with-locks read-locks 
+    (locking "user-id"
+        (update-user (fn [user] (assoc user :email "new-email@gmail.com"))))
+
+```
+
+___
+
+
+
 #### Transducers: distinct-by and dedupe-by
 
-The xxx-by transducers are, in my opinion, always preferable to a xxx transducer.
-The reason being that xxx-by degrades into xxx when f is `identity` and so is 
+The `xxx-by` transducers are, in my opinion, always preferable to a xxx transducer.
+The reason being that `xxx-by` degrades into `xxx` when `f` is `identity` and so is 
 equivalent but more powerful.
 
 ```clojure 
 
 (require '[missing.core :refer :all])
 
-(distinct-by :x [{:x 1} {:x 2} {:x 1}]) 
-;=> [{:x 1} {:x 2}]
+(distinct-by :x [{:x 1} {:x 2} {:x 1}]) ;=> [{:x 1} {:x 2}]
 
-(dedupe-by :x [{:x 1} {:x 1} {:x 2} {:x 1}]) ;
-=> [{:x 1} {:x 2} {:x 1}]
+(dedupe-by :x [{:x 1} {:x 1} {:x 2} {:x 1}]) ;=> [{:x 1} {:x 2} {:x 1}]
 
 ```
 
@@ -75,6 +146,7 @@ partition-by with one-dimensional overlap tracking to chunk the sequence into co
 
 (contiguous-by :x1 :x2 flat)
 ;=> [[{:x1 0 :x2 4} {:x1 1 :x2 5} {:x1 5 :x2 6}] {:x1 10 :x2 12}]
+
 ; after this you'll probably perform a map to merge the
 ; contiguous items in each partition into one element
 
