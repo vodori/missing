@@ -58,6 +58,55 @@ a sequence of their results.
 
 ___
 
+#### Combinatorics
+
+```clojure 
+
+(require '[missing.core :refer :all])
+
+(subsets #{1 2 3}) 
+;=> #{#{} #{1} #{2} #{3} #{1 2} #{2 3} #{1 2 3}}
+
+(submaps {:a 1 :b 2 :c 3}) 
+;=> {} {:a 1} {:c 3} {:b 2} {:c 3, :b 2} {:b 2, :a 1} {:c 3, :a 1} {:c 3, :b 2, :a 1}
+
+```
+
+___
+
+#### Set overlap
+
+Check if sets intersect at all or if they're mutually exclusive.
+
+```clojure 
+
+(require '[missing.core :refer :all])
+
+(intersect? #{1 2 3} #{1 3} #{1}) ;=> true
+
+(exclusive? #{1 2 3} ${4 5} #{6}) ;=> true
+
+```
+
+___
+
+
+#### Lazy merge sort
+
+Create a single sorted sequence by lazily interleaving already sorted sequences.
+
+```clojure 
+
+(require '[missing.core :refer :all])
+
+(def x [:a :c :d :e :i])
+(def y [:b :f :g :h])
+(merge-sort [x y]) ;=> [:a :b :c :d :e :f :g :h :i]
+
+```
+
+___
+
 #### Indexing collections into maps
 
 Use these when you're building lookup tables to efficiently perform
