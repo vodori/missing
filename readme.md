@@ -70,25 +70,16 @@ ___
 (submaps {:a 1 :b 2 :c 3}) 
 ;=> {} {:a 1} {:c 3} {:b 2} {:c 3, :b 2} {:b 2, :a 1} {:c 3, :a 1} {:c 3, :b 2, :a 1}
 
-```
+(intersect? #{1 2 3} #{1 3} #{1}) 
+;=> true
 
-___
-
-#### Set overlap
-
-Check if sets intersect at all or if they're mutually exclusive.
-
-```clojure 
-
-(require '[missing.core :refer :all])
-
-(intersect? #{1 2 3} #{1 3} #{1}) ;=> true
-
-(exclusive? #{1 2 3} ${4 5} #{6}) ;=> true
+(exclusive? #{1 2 3} ${4 5} #{6}) 
+;=> true
 
 ```
 
 ___
+
 
 
 #### Lazy merge sort
