@@ -140,9 +140,10 @@ ___
 #### Locking by value
 
 Clojure has lots of great ways to deal with state. Reference locking is probably 
-least among them but if the use case is isolated it's sometimes the easiest. Missing 
-provides reentrant locks that lock on values. This provides a simple way to ensure
-two parts of your program never interact on behalf of the same value at the same time.
+least among them but if the use case is isolated and the exclusive operation involves 
+side effects (can't run in a CAS loop) sometimes it's an appropriate choice. Missing 
+provides reentrant locks that lock on values so you can ensure different parts of your 
+program never act on behalf of the same value (often an identifier) at the same time.
 
 ```clojure 
 

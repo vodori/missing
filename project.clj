@@ -15,7 +15,7 @@
    [:developer
     [:name "Paul Rutledge"]
     [:url "https://github.com/rutledgepaulv"]
-    [:email "rutledgepaulv@gmail.com"]
+    [:email "paul.rutledge@vodori.com"]
     [:timezone "-5"]]]
 
   :deploy-repositories
