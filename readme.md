@@ -220,7 +220,7 @@ ___
 Use this when you can declare an order of dependencies between tasks 
 and you want to organize them into serial phases of concurrent tasks. 
 You could use this as a core algorithm to create macros that optimize
-remote calls like haxl.
+remote calls. 
 
 ```clojure
 (require '[missing.topology :refer :all])
