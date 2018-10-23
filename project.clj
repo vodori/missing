@@ -16,6 +16,11 @@
     [:name "Paul Rutledge"]
     [:url "https://github.com/rutledgepaulv"]
     [:email "paul.rutledge@vodori.com"]
+    [:timezone "-5"]]
+   [:developer
+    [:name "Jesse Krantzler"]
+    [:url "https://github.com/jesse-krantzler"]
+    [:email "jesse.krantzler@vodori.com"]
     [:timezone "-5"]]]
 
   :deploy-repositories
