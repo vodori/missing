@@ -116,6 +116,13 @@
   [pred coll]
   (first (drop-while (complement pred) coll)))
 
+(defn find-indexed
+  "Returns [index item] for the first item that matches pred."
+  [pred coll]
+  (->> (map vector (range) coll)
+       (drop-while (comp (complement pred) second))
+       (first)))
+
 (defn sort-by-value
   "Sort a map by its values"
   [m]
@@ -438,3 +445,26 @@
   the submaps of the map returned by f."
   [f coll]
   (groupcat-by (comp submaps f) coll))
+
+(defn intersection-by
+  "Returns the intersection of the elements in the collections
+  according to their 'key' computed by f."
+  [f & colls]
+  (loop [[s1 s2 & ss] colls]
+      (cond
+        (nil? s1) #{}
+        (nil? s2) (or s1 #{})
+        :else
+        (let [indexed-s1   (group-by f s1)
+              indexed-s2   (group-by f s2)
+              intersection (sets/intersection
+                             (set (keys indexed-s1))
+                             (set (keys indexed-s2)))]
+          (recur (list (apply
+                         sets/union
+                         (map set
+                           (concat
+                             (map indexed-s1 intersection)
+                             (map indexed-s2 intersection))))
+                       (first ss)
+                       (rest ss)))))))

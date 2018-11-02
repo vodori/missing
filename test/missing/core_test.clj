@@ -187,3 +187,10 @@
   (let [data [{:startIndex 0 :stopIndex 20} {:startIndex 5 :stopIndex 26} {:startIndex 28 :stopIndex 50}]]
     (is (= [[{:startIndex 0 :stopIndex 20} {:startIndex 5 :stopIndex 26}] [{:startIndex 28 :stopIndex 50}]]
            (contiguous-by :startIndex :stopIndex data)))))
+
+(deftest intersection-by-test
+  (let [one [{:name "Test" :id 1} {:name "Thing" :id 2}]
+        two [{:name "Bing" :id 3} {:name "Thing" :id 4}]]
+    (is (= #{{:name "Thing" :id 2} {:name "Thing" :id 4}} (intersection-by :name one two)))
+    (is (= one (intersection-by :name one)))
+    (is (= #{} (intersection-by :name)))))
