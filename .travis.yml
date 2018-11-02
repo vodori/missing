@@ -2,7 +2,6 @@ language: clojure
 jdk:
 - oraclejdk8
 - oraclejdk9
-- openjdk10
 matrix:
   include:
     - jdk: openjdk10
