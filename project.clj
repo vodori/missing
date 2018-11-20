@@ -27,4 +27,4 @@
   {"releases" {:url "https://oss.sonatype.org/service/local/staging/deploy/maven2/" :creds :gpg}
    "snapshots" {:url "https://oss.sonatype.org/content/repositories/snapshots/" :creds :gpg}}
 
-  :dependencies [[org.clojure/clojure "1.10.0-beta4"]])
+  :dependencies [[org.clojure/clojure "1.10.0-beta7"]])
