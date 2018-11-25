@@ -8,7 +8,7 @@ A utility library for Clojure of functions and macros that complement clojure.co
 ### Install
 
 ``` 
-[com.vodori/missing "0.1.0"]
+[com.vodori/missing "0.1.2"]
 ```
 
 ### Sample usages
