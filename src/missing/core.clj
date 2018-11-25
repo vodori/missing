@@ -20,22 +20,26 @@
 (defn filter-keys
   "Filter a map by a predicate on its keys"
   [pred m]
-  (into {} (filter (comp pred key)) m))
+  (letfn [(f [agg k v] (if (pred k) (assoc! agg k v) agg))]
+    (persistent! (reduce-kv f (transient {}) m))))
 
 (defn filter-vals
   "Filter a map by a predicate on its values"
   [pred m]
-  (into {} (filter (comp pred val)) m))
+  (letfn [(f [agg k v] (if (pred v) (assoc! agg k v) agg))]
+    (persistent! (reduce-kv f (transient {}) m))))
 
 (defn map-keys
   "Transform the keys of a map"
   [f m]
-  (into {} (map (fn [[k v]] [(f k) v])) m))
+  (letfn [(f* [agg k v] (assoc! agg (f k) v))]
+    (persistent! (reduce-kv f* (transient {}) m))))
 
 (defn map-vals
   "Transform the values of a map"
   [f m]
-  (into {} (map (fn [[k v]] [k (f v)])) m))
+  (letfn [(f* [agg k v] (assoc! agg k (f v)))]
+    (persistent! (reduce-kv f* (transient {}) m))))
 
 (defn reverse-map
   "Invert a map"
