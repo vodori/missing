@@ -3,9 +3,10 @@
             [clojure.string :as strings]
             [clojure.set :as sets]
             [clojure.edn :as edn])
-  (:import (java.util.concurrent TimeUnit TimeoutException Future)
+  (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
-           (java.time Duration)))
+           (java.time Duration)
+           (java.util.regex Pattern)))
 
 (defn uuid
   "Get a uuid as string"
@@ -46,20 +47,52 @@
   [m]
   (into {} (map (comp vec reverse)) m))
 
+(defn invert-grouping
+  "Take a map of categories to items and turn it into a map of item to category."
+  [m]
+  (->> m (mapcat #(map vector (val %) (repeat (key %)))) (into {})))
+
 (defn not-empty? [coll]
   ((complement empty?) coll))
 
 (defn not-blank? [s]
   ((complement strings/blank?) s))
 
+(defn left-pad
+  ([s length]
+   (left-pad s length " "))
+  ([s length pad]
+   (let [pad-length (max 0 (- length (count (str s))))]
+     (str (apply str (repeat pad-length pad)) s))))
+
+(defn lstrip [s strip]
+  (let [re (format "^(%s)+" (Pattern/quote strip))]
+    (strings/replace s (Pattern/compile re) "")))
+
+(defn rstrip [s strip]
+  (let [re (format "(%s)+$" (Pattern/quote strip))]
+    (strings/replace s (Pattern/compile re) "")))
+
+(defn join-paths [& paths]
+  (letfn [(join [p1 p2]
+            (let [part1 (rstrip p1 "/") part2 (lstrip p2 "/")]
+              (if-not (strings/blank? part1)
+                (str part1 "/" part2)
+                part2)))]
+    (rstrip (reduce join "" (filter some? (flatten paths))) "/")))
+
 (defn index-by
   "Index the items of a collection into a map by a key"
   [key-fn coll]
   (into {} (map (juxt key-fn identity)) coll))
 
-(defn contains-all? [coll keys]
-  (let [ks (set keys)]
-    (= ks (sets/intersection (set (seq coll)) ks))))
+(defn contains-all? [coll [k & more :as keys]]
+  (if (nil? (seq keys))
+    true
+    (let [res (contains? coll k)]
+      (if (or (false? res) (empty? more))
+        res
+        (recur coll more)))))
 
 (defn lift-by
   "Returns a function that first applies the lift to each argument before applying the original function."
@@ -86,7 +119,7 @@
       (recur intersection (first ss) (rest ss)))))
 
 (defn exclusive?
-  "Returns true if the provided collections are all mutually exclusive."
+  "Returns true if the provided collections are mutually exclusive."
   [s1 s2 & ss]
   (let [set1 (set s1) set2 (set s2)]
     (cond
@@ -319,22 +352,24 @@
   "Run body on a separate thread subject to a timeout. If reaches timeout
   a vector of [false nil] will be returned, otherwise [true result]"
   [millis & body]
-  `(let [future# ^Future (future ~@body)]
-     (try [true (.get future# ~millis TimeUnit/MILLISECONDS)]
-          (catch TimeoutException _#
-            (try (if-not (future-cancel future#)
-                   [true (.get future# 0 TimeUnit/MILLISECONDS)]
-                   [false nil])
-                 (catch Exception _#
-                   [false nil]))))))
+  `(let [future# (future ~@body)
+         result# (deref future# ~millis ::aborted)]
+     (if (= ::aborted result#)
+       (if-not (future-cancel future#)
+         (let [inner# (deref future# 0 ::aborted)]
+           (if (= ::aborted inner#)
+             [false nil]
+             [true inner#]))
+         [false nil])
+       [true result#])))
 
 (defmacro timing
   "Returns a vector of [millis-taken result]"
   [& body]
-  `(let [start#  (System/currentTimeMillis)
+  `(let [start#  (System/nanoTime)
          result# (do ~@body)
-         stop#   (System/currentTimeMillis)]
-     [(- stop# start#) result#]))
+         stop#   (System/nanoTime)]
+     [(/ (- stop# start#) (double 1E6)) result#]))
 
 (defn run-par!
   "Like run! but executes each element concurrently."
@@ -348,27 +383,32 @@
   (let [expanded (conj `~(partition 2 (interleave (repeat 'future) expressions)) 'list)]
     `(map deref (doall ~expanded))))
 
-(defn human-readable
-  "Converts millis or a java.date.Duration into human readable text."
+(defn duration-parts
+  "Given millis or a java.time.Duration return a map of time unit
+   to amount of time in that unit. Bucket the duration into larger
+   time units before smaller time units."
   [duration]
-  (let [values (into [] (EnumSet/allOf TimeUnit))
-        lowest ^TimeUnit (get values 0)]
-    (->> values
-         (reverse)
-         (reduce
-           (fn [[^String s ^Long rem :as agg] ^TimeUnit next]
-             (let [in-unit (.convert next rem lowest)]
-               (if (pos? in-unit)
-                 (let [pass-down (- rem (.convert lowest in-unit next))
-                       base-name (strings/lower-case (apply str (butlast (.name next))))]
-                   [(->> [s (format (if (> in-unit 1) "%d %ss" "%d %s") in-unit base-name)]
-                         (remove strings/blank?)
-                         (strings/join ", "))
-                    pass-down])
-                 agg)))
-           ["" (.toNanos (if (instance? Duration duration)
-                           duration (Duration/ofMillis duration)))])
-         (first))))
+  (let [nanos
+        (.toNanos
+          (if (instance? Duration duration)
+            duration (Duration/ofMillis duration)))]
+    (loop [aggregate (array-map) [this-unit & other-units] (reverse (EnumSet/allOf TimeUnit)) remainder nanos]
+      (let [in-unit (.convert this-unit remainder TimeUnit/NANOSECONDS)]
+        (let [updated  (assoc aggregate (keyword (strings/lower-case (.name this-unit))) in-unit)
+              leftover (- remainder (.convert TimeUnit/NANOSECONDS in-unit this-unit))]
+          (if (empty? other-units) updated (recur updated other-units leftover)))))))
+
+(defn duration-explain
+  "Converts millis or a java.time.Duration into a human readable description."
+  [duration]
+  (letfn [(reduction [text [unit amount]]
+            (let [base-name (apply str (butlast (name unit)))]
+              (->> [text (format (if (> amount 1) "%d %ss" "%d %s") amount base-name)]
+                   (remove strings/blank?)
+                   (strings/join ", "))))]
+    (->> (duration-parts duration)
+         (filter (comp pos? val))
+         (reduce reduction ""))))
 
 (defn get-extension
   "Get the file extension from a filename."
@@ -379,38 +419,6 @@
   "Get the filename (without extension) from a filename"
   [filename]
   (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
-
-(defn merge-entries-with
-  "Merges entries in maps according to f. f is called for
-  every key value combo even when the key does not appear in the
-  second map. f should return a sequence of [k v] vectors
-  that should be added to the aggregate."
-  [f & ms]
-  (letfn [(merge-entry [m [k v]]
-            (let [additional-entries (f k (get m k) v)]
-              (reduce (fn [m* [k* v*]] (assoc m* k* v*)) m (or additional-entries []))))
-          (merge-entries [m1 m2] (reduce merge-entry (or m1 {}) (seq m2)))]
-    (reduce merge-entries {} ms)))
-
-(defn merge+
-  "Merges maps by adding keys and adding sets"
-  [& maps]
-  (letfn [(merger [k v1 v2]
-            (cond
-              (and (set? v1) (set? v2)) [k (sets/union v1 v2)]
-              (set? v1) [k (conj v1 v2)]
-              :otherwise [k v2]))]
-    (apply merge-entries-with merger maps)))
-
-(defn merge-
-  "Merges maps by subtracting keys and subtracting sets"
-  [& maps]
-  (letfn [(merger [k v1 v2]
-            (cond
-              (and (set? v1) (set? v2)) [k (sets/difference v1 v2)]
-              (set? v1) [k (disj v1 v2)]
-              :otherwise []))]
-    (apply merge-entries-with merger maps)))
 
 (defn subsets
   "Returns all the subsets of a collection"
@@ -426,23 +434,17 @@
   "Like index-by except f is allowed to return a sequence of keys
   that the element should be indexed by."
   [f coll]
-  (reduce #(apply assoc %1 (interleave (f %2) (repeat %2))) {} coll))
+  (->> coll
+       (mapcat #(map vector (f %) (repeat %)))
+       (into {})))
 
 (defn groupcat-by
   "Like group-by except f is allowed to return a sequence of keys
   that the element should be bucketed by."
   [f coll]
-  (-> (fn [agg x]
-        (-> (fn [agg* k]
-              (update agg* k (fnil conj []) x))
-            (reduce agg (f x))))
-      (reduce {} coll)))
-
-(defn index-by-labels
-  "Indexes elements in coll according to all of
-  the submaps of the map returned by f."
-  [f coll]
-  (indexcat-by (comp submaps f) coll))
+  (->> coll
+       (mapcat #(map vector (f %) (repeat %)))
+       (reduce (fn [m [k v]] (update m k (fnil conj []) v)) {})))
 
 (defn group-by-labels
   "Groups elements in coll according to all of
@@ -451,24 +453,23 @@
   (groupcat-by (comp submaps f) coll))
 
 (defn intersection-by
-  "Returns the intersection of the elements in the collections
-  according to their 'key' computed by f."
-  [f & colls]
-  (loop [[s1 s2 & ss] colls]
-      (cond
-        (nil? s1) #{}
-        (nil? s2) (or s1 #{})
-        :else
-        (let [indexed-s1   (group-by f s1)
-              indexed-s2   (group-by f s2)
-              intersection (sets/intersection
-                             (set (keys indexed-s1))
-                             (set (keys indexed-s2)))]
-          (recur (list (apply
-                         sets/union
-                         (map set
-                           (concat
-                             (map indexed-s1 intersection)
-                             (map indexed-s2 intersection))))
-                       (first ss)
-                       (rest ss)))))))
+  "Returns the set of elements that compute to the same key as long as the key
+   appears in the keyset from each provided collection."
+  [f & [s1 s2 s3 & ss]]
+  (cond
+    (nil? s1) #{}
+    (nil? s2) (or s1 #{})
+    :else
+    (let [grouped-s1   (group-by f s1)
+          grouped-s2   (group-by f s2)
+          intersection (sets/intersection
+                         (set (keys grouped-s1))
+                         (set (keys grouped-s2)))]
+      (recur f [(apply
+                  sets/union
+                  (map set
+                    (concat
+                      (map grouped-s1 intersection)
+                      (map grouped-s2 intersection))))
+                s3
+                ss]))))

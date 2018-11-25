@@ -155,11 +155,11 @@
   (is (not (not-blank? nil)))
   (is (not (not-blank? "   \n\t \r\n"))))
 
-(deftest human-readable-test
+(deftest duration-explain-test
   (is (= "2 days, 22 hours, 50 seconds, 233 milliseconds"
-         (human-readable (Duration/ofMillis 252050233)))))
+         (duration-explain (Duration/ofMillis 252050233)))))
 
-(deftest powerset-test
+(deftest subset-test
   (is (= #{#{} #{1} #{2} #{3} #{1 2} #{1 3} #{2 3} #{1 2 3}} (subsets #{1 2 3}))))
 
 (deftest group-by-labels-test
@@ -194,3 +194,34 @@
     (is (= #{{:name "Thing" :id 2} {:name "Thing" :id 4}} (intersection-by :name one two)))
     (is (= one (intersection-by :name one)))
     (is (= #{} (intersection-by :name)))))
+
+(deftest invert-grouping-test
+  (let [m        (group-by even? (range 10))
+        inverted (invert-grouping m)]
+    (dotimes [x 10]
+      (is (= (even? x) (get inverted x))))))
+
+(deftest find-first-test
+  (let [coll [1 2 3 4 5 6 7]]
+    (is (= 4 (find-first (partial < 3) coll)))
+    (is (nil? (find-first (partial < 100) coll)))))
+
+(deftest find-indexed-test
+  (let [coll [1 2 3 4 5 6 7]]
+    (is (= [3 4] (find-indexed (partial < 3) coll)))
+    (is (nil? (find-indexed (partial < 100) coll)))))
+
+(deftest indexcat-by-test
+  (let [a {:keys [1 2] :a true}
+        b {:keys [3 4] :b true}]
+    (is (= {1 a 2 a 3 b 4 b}
+           (indexcat-by :keys [a b])))))
+
+(deftest join-paths-test
+  (let [s1 "https://google.com"]
+    (is (= s1 (join-paths s1)))
+    (is (= "https://google.com/results/vodori/employees/paul"
+           (join-paths s1 ["results/" "//vodori/" ["/employees" ["paul/"]]])))))
+
+(deftest left-pad-test
+  (is (= "000000test" (left-pad "test" 10 "0"))))

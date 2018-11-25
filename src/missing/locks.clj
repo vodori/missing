@@ -1,5 +1,5 @@
 (ns missing.locks
-  (:require [clojure.core :as clj]))
+  (:refer-clojure :exclude [locking]))
 
 
 (def ^:dynamic *locks* (atom {}))
@@ -32,7 +32,7 @@
   [value & body]
   `(let [v# ~value]
      (try
-       (clj/locking (lease v#) ~@body)
+       (clojure.core/locking (lease v#) ~@body)
        (finally (release v#)))))
 
 (defmacro with-locks
