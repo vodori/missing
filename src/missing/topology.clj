@@ -1,5 +1,5 @@
 (ns missing.topology
-  "Basic graph functions to inquire a graph in adjacency list form."
+  "Simple graph functions for graphs in adjacency map form."
   (:require [missing.core :as miss]
             [clojure.set :as sets]))
 
@@ -29,7 +29,8 @@
 
 (defn no-incoming
   "Get all nodes with no inbound edges."
-  [g] (sets/difference (nodes g) (incoming g)))
+  [g] (let [normalized (normalize g)]
+        (sets/difference (nodes normalized) (incoming normalized))))
 
 (defn outgoing
   "Get all nodes with outbound edges."
@@ -37,7 +38,8 @@
 
 (defn no-outgoing
   "Get all nodes with no outbound edges."
-  [g] (sets/difference (nodes g) (outgoing g)))
+  [g] (let [normalized (normalize g)]
+        (sets/difference (nodes normalized) (outgoing normalized))))
 
 (defn graph
   "Create a graph from a set of edges"
@@ -95,6 +97,38 @@
   "Return a depth first traversal of the graph, beginning at node start."
   [g start] (tree-seq #(not-empty (get g % #{})) #(get g % #{}) start))
 
+(defn incoming-neighbors [g n]
+  (->> (incoming-edges g n)
+       (map first)
+       (set)))
+
+(defn outgoing-neighbors [g n]
+  (->> (outgoing-edges g n)
+       (map second)
+       (set)))
+
+(defn neighbors [g n]
+  (sets/union
+    (incoming-neighbors g n)
+    (outgoing-neighbors g n)))
+
+(defn incoming-degree [g n]
+  (count (incoming-edges g n)))
+
+(defn outgoing-degree [g n]
+  (count (outgoing-edges g n)))
+
+(defn source? [g n]
+  (zero? (incoming-degree g n)))
+
+(defn sink? [g n]
+  (zero? (outgoing-degree g n)))
+
+(defn degree [g n]
+  (let [g* (normalize g)]
+    (+ (incoming-degree g* n)
+       (outgoing-degree g* n))))
+
 (defn walk?
   "Check if the given walk is valid for the graph."
   [g [x1 x2 & xs]]
@@ -106,39 +140,27 @@
       (empty? xs) true
       :otherwise (recur normalized (cons x2 xs)))))
 
+(defn topological-sort-with-grouping
+  "Returns a topological sort of the adjacency map and
+   partition items into sets where order is arbitrary."
+  [g]
+  (loop [g* (normalize g) results []]
+    (let [nnodes (no-incoming g*)]
+      (if (empty? nnodes)
+        (let [flat (mapcat identity results)]
+          (when (= (count flat) (count (nodes g)))
+            results))
+        (recur
+          (apply dissoc g* nnodes)
+          (conj results (set nnodes)))))))
+
 (defn topological-sort
   "Returns a topological sort of the adjacency map"
   ([g]
-   (let [normalized (normalize g)]
-     (topological-sort normalized [] (no-incoming normalized))))
-  ([g l s]
-   (if (empty? s)
-     (when (every? empty? (vals g)) l)
-     (let [[n s'] (let [item (first s)]
-                    [item (disj s item)])
-           m  (g n)
-           g' (reduce #(update-in % [n] disj %2) g m)]
-       (recur g' (conj l n) (sets/union s' (sets/intersection (no-incoming g') m)))))))
+   (some->>
+     (topological-sort-with-grouping g)
+     (mapcat identity)
+     (vec))))
 
-(defn topological-sort-with-grouping
-  "Returns a topological sort of the adjacency map and partition items into sets where order is arbitrary."
-  [g]
-  (let [normalized (normalize g)]
-    (loop [nodes (no-incoming normalized) counts {} level 0]
-      (if (not-empty nodes)
-        (recur (mapcat normalized nodes)
-               (reduce (fn [agg node]
-                         (if-some [existing (get agg node)]
-                           (let [new-count (max existing level)]
-                             (if (not= existing new-count)
-                               (let [delta (- new-count existing)]
-                                 (->> (traversal normalized node)
-                                      (remove (partial = node))
-                                      (reduce (fn [agg next] (update agg next (fnil + 0) delta)) agg)))
-                               agg))
-                           (assoc agg node level)))
-                       counts nodes)
-               (inc level))
-        (->> (topological-sort normalized)
-             (partition-by counts)
-             (map set))))))
+(defn cyclical? [g]
+  (nil? (topological-sort g)))
