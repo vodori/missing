@@ -97,34 +97,50 @@
   "Return a depth first traversal of the graph, beginning at node start."
   [g start] (tree-seq #(not-empty (get g % #{})) #(get g % #{}) start))
 
-(defn incoming-neighbors [g n]
+(defn incoming-neighbors
+  "Gets the neighbors of n from any inbound edges."
+  [g n]
   (->> (incoming-edges g n)
        (map first)
        (set)))
 
-(defn outgoing-neighbors [g n]
+(defn outgoing-neighbors
+  "Gets the neighbors of n from any outbound edges."
+  [g n]
   (->> (outgoing-edges g n)
        (map second)
        (set)))
 
-(defn neighbors [g n]
+(defn neighbors
+  "Gets all the neighbors of n."
+  [g n]
   (sets/union
     (incoming-neighbors g n)
     (outgoing-neighbors g n)))
 
-(defn incoming-degree [g n]
+(defn incoming-degree
+  "Gets the incoming degree of n."
+  [g n]
   (count (incoming-edges g n)))
 
-(defn outgoing-degree [g n]
+(defn outgoing-degree
+  "Gets the outgoing degree of n."
+  [g n]
   (count (outgoing-edges g n)))
 
-(defn source? [g n]
+(defn source?
+  "Is n a node with no incoming edges?"
+  [g n]
   (zero? (incoming-degree g n)))
 
-(defn sink? [g n]
+(defn sink?
+  "Is n a node with no outgoing edges?"
+  [g n]
   (zero? (outgoing-degree g n)))
 
-(defn degree [g n]
+(defn degree
+  "How many edges does this node have?"
+  [g n]
   (let [g* (normalize g)]
     (+ (incoming-degree g* n)
        (outgoing-degree g* n))))
@@ -162,5 +178,7 @@
      (mapcat identity)
      (vec))))
 
-(defn cyclical? [g]
+(defn cyclical?
+  "Are there cycles in this graph?"
+  [g]
   (nil? (topological-sort g)))
