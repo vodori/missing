@@ -218,8 +218,7 @@ ___
 
 The `missing.topology` namespace contains simple implementations of
 many basic graph functions. Every function that takes a graph accepts 
-just a plain adjacency map (map of node to list of nodes it has edges to).
-
+just a plain adjacency map (map of node to list of nodes it has edges to). 
 If your nodes don't have value semantics then you should just
 use a graph of identifiers and perform lookups back to your 
 objects.
