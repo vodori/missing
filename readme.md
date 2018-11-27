@@ -8,7 +8,7 @@ A utility library for Clojure of functions and macros that complement clojure.co
 ### Install
 
 ``` 
-[com.vodori/missing "0.1.2"]
+[com.vodori/missing "0.1.4"]
 ```
 
 ### Sample usages
@@ -214,25 +214,41 @@ segments. It works on any comparables and is lazy.
 
 ___
 
-#### Topological sort
+#### Graph Functions
 
+The `missing.topology` namespace contains simple implementations of
+many basic graph functions. Every function that takes a graph accepts 
+just a plain adjacency map (map of node to list of nodes it has edges to).
 
-Use this when you can declare an order of dependencies between tasks 
-and you want to organize them into serial phases of concurrent tasks. 
-You could use this as a core algorithm to create macros that optimize
-remote calls. 
+If your nodes don't have value semantics then you should just
+use a graph of identifiers and perform lookups back to your 
+objects.
+
+Perhaps most generally useful are the topological sorts:
 
 ```clojure
 (require '[missing.topology :refer :all])
 
-; define an adjacency graph of dependencies.
+; define an adjacency graph of 'must happen before'.
 ; a must happen before b and c
 ; b must happen before d
 (def g {:a [:b :c] :b [:d]})
 
-; sort them into serial phases where items
-; in each phase can be resolved concurrently
+; sort them into phases where items
+; in each phase can be resolved 
+; concurrently
 (topological-sort-with-grouping g) 
+; => [#{:a} #{:c :b} #{:d}]
+
+; if you'd rather think in dependencies like: 
+; b depends on a
+; c depends on a
+; d depends on b
+
+(def g' {:b [:a] :c [:a] :d [:b]})
+
+; then just invert it before sorting:
+(topological-sort-with-grouping (inverse g')) 
 ; => [#{:a} #{:c :b} #{:d}]
 ```
 
