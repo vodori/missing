@@ -98,7 +98,7 @@ Create a single sorted sequence by lazily interleaving already sorted sequences.
 
 ___
 
-#### Indexing collections into maps
+#### Indexing collections
 
 Use these when you're building lookup tables to efficiently perform
 batch operations.
@@ -133,6 +133,22 @@ batch operations.
 (get table {:version "2018-07" :stage "dev"}) 
 ;=> [{:meta {:app "api" :version "2018-07" :stage "dev"}}]
 
+
+(let [pk1           "paul.rutledge@example.com"
+      pk2           "raul.putledge@example.com"
+      person-info  [{:id pk1 :name "Paul" :age 26}
+                    {:id pk2 :name "Raul" :age 62}]
+      account-info [{:email pk1 :year-joined 2018}
+                    {:email pk2 :year-joined 8102}]]
+  (collate [[:id person-info] [:email account-info]])))
+  
+;=> {"raul.putledge@example.com"
+;    [{:id "raul.putledge@example.com", :name "Raul", :age 62}
+;      {:email "raul.putledge@example.com", :year-joined 8102}],
+;
+;    "paul.rutledge@example.com"
+;    [{:id "paul.rutledge@example.com", :name "Paul", :age 26}
+;     {:email "paul.rutledge@example.com", :year-joined 2018}]}
 ```
 
 ___
