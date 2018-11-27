@@ -229,9 +229,10 @@ Perhaps most generally useful are the topological sorts:
 ```clojure
 (require '[missing.topology :refer :all])
 
-; define an adjacency graph of 'must happen before'.
-; a must happen before b and c
-; b must happen before d
+; define an adjacency graph with edges indicating
+; left 'is a requirement of' right
+; a is a requirement of b and c
+; b is a requirement of d
 (def g {:a [:b :c] :b [:d]})
 
 ; sort them into phases where items
@@ -240,14 +241,16 @@ Perhaps most generally useful are the topological sorts:
 (topological-sort-with-grouping g) 
 ; => [#{:a} #{:c :b} #{:d}]
 
-; if you'd rather think in dependencies like: 
+; If you'd rather, you could define
+; an adjacency graph with edges indicating
+; left 'depends on' right
 ; b depends on a
 ; c depends on a
 ; d depends on b
 
 (def g' {:b [:a] :c [:a] :d [:b]})
 
-; then just invert it before sorting:
+; and just invert it before sorting:
 (topological-sort-with-grouping (inverse g')) 
 ; => [#{:a} #{:c :b} #{:d}]
 ```
