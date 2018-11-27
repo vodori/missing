@@ -58,35 +58,41 @@
 (defn not-blank? [s]
   ((complement strings/blank?) s))
 
-(defn left-pad
-  ([s length]
-   (left-pad s length " "))
-  ([s length pad]
-   (let [pad-length (max 0 (- length (count (str s))))]
-     (str (apply str (repeat pad-length pad)) s))))
-
-(defn lstrip [s strip]
+(defn lstrip
+  "Strip a prefix from a string."
+  [s strip]
   (let [re (format "^(%s)+" (Pattern/quote strip))]
     (strings/replace s (Pattern/compile re) "")))
 
-(defn rstrip [s strip]
+(defn rstrip
+  "Strip a suffix from a string."
+  [s strip]
   (let [re (format "(%s)+$" (Pattern/quote strip))]
     (strings/replace s (Pattern/compile re) "")))
 
-(defn join-paths [& paths]
+(defn join-paths
+  "Join paths together. Never returns a leading or trailing slash
+   Accepts string arguments or collections (which will be flattened).
+   '/' delimiters already at the beginning or end of a segment will be
+   removed leaving only a single '/' between each segment."
+  [& paths]
   (letfn [(join [p1 p2]
             (let [part1 (rstrip p1 "/") part2 (lstrip p2 "/")]
               (if-not (strings/blank? part1)
                 (str part1 "/" part2)
                 part2)))]
-    (rstrip (reduce join "" (filter some? (flatten paths))) "/")))
+    (let [[s1 :as segments] (filter some? (flatten paths))
+          naked (rstrip (reduce join "" segments) "/")]
+      (if (and s1 (strings/starts-with? s1 "/")) (str "/" naked) naked))))
 
 (defn index-by
   "Index the items of a collection into a map by a key"
   [key-fn coll]
   (into {} (map (juxt key-fn identity)) coll))
 
-(defn contains-all? [coll [k & more :as keys]]
+(defn contains-all?
+  "Does coll contain every key?"
+  [coll [k & more :as keys]]
   (if (nil? (seq keys))
     true
     (let [res (contains? coll k)]
@@ -425,6 +431,10 @@
   [coll]
   (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
 
+(defn symmetric-difference
+  "Returns the union of the exclusive portions of s1 and s2."
+  [s1 s2] (sets/union (sets/difference s1 s2) (sets/difference s2 s1)))
+
 (defn submaps
   "Returns all the submaps of a map"
   [m]
@@ -452,24 +462,13 @@
   [f coll]
   (groupcat-by (comp submaps f) coll))
 
-(defn intersection-by
-  "Returns the set of elements that compute to the same key as long as the key
-   appears in the keyset from each provided collection."
-  [f & [s1 s2 s3 & ss]]
-  (cond
-    (nil? s1) #{}
-    (nil? s2) (or s1 #{})
-    :else
-    (let [grouped-s1   (group-by f s1)
-          grouped-s2   (group-by f s2)
-          intersection (sets/intersection
-                         (set (keys grouped-s1))
-                         (set (keys grouped-s2)))]
-      (recur f [(apply
-                  sets/union
-                  (map set
-                    (concat
-                      (map grouped-s1 intersection)
-                      (map grouped-s2 intersection))))
-                s3
-                ss]))))
+(defn collate
+  "Given sequence of [key-fn coll] pairs, create a lookup table
+   from disparate data sets. Define how to compute the
+   primary key from each set and it'll give you back a map
+   of rows indexed by the row key."
+  [f+colls]
+  (let [idxs (mapv (partial apply index-by) f+colls)]
+    (->> (set (mapcat keys idxs))
+         (map (juxt identity #(mapv (fn [idx] (get idx %)) idxs)))
+         (into {}))))

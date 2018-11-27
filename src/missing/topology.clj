@@ -29,8 +29,8 @@
 
 (defn no-incoming
   "Get all nodes with no inbound edges."
-  [g] (let [normalized (normalize g)]
-        (sets/difference (nodes normalized) (incoming normalized))))
+  [g] (let [g* (normalize g)]
+        (sets/difference (nodes g*) (incoming g*))))
 
 (defn outgoing
   "Get all nodes with outbound edges."
@@ -38,8 +38,8 @@
 
 (defn no-outgoing
   "Get all nodes with no outbound edges."
-  [g] (let [normalized (normalize g)]
-        (sets/difference (nodes normalized) (outgoing normalized))))
+  [g] (let [g* (normalize g)]
+        (sets/difference (nodes g*) (outgoing g*))))
 
 (defn graph
   "Create a graph from a set of edges"
@@ -63,15 +63,15 @@
   "Subtract g2 from g1."
   [g1 g2] (graph (sets/difference (edges g1) (edges g2))))
 
-(defn asymmetric-difference
+(defn symmetric-difference
   "Returns the union of the exclusive sections of g1 and g2."
   [g1 g2] (union (difference g1 g2) (difference g2 g1)))
 
 (defn outgoing-edges
   "Get all edges that go from n to another node."
   [g n]
-  (let [normalized (normalize g)]
-    (set (map vector (repeat n) (get normalized n #{})))))
+  (let [g* (normalize g)]
+    (set (map vector (repeat n) (get g* n #{})))))
 
 (defn incoming-edges
   "Get all edges that go from another node to n."
@@ -148,13 +148,13 @@
 (defn walk?
   "Check if the given walk is valid for the graph."
   [g [x1 x2 & xs]]
-  (let [normalized (normalize g)]
+  (let [g* (normalize g)]
     (cond
       (nil? x1) false
-      (nil? x2) (contains? normalized x1)
-      (not (contains? (get normalized x1) x2)) false
+      (nil? x2) (contains? g* x1)
+      (not (contains? (get g* x1) x2)) false
       (empty? xs) true
-      :otherwise (recur normalized (cons x2 xs)))))
+      :otherwise (recur g* (cons x2 xs)))))
 
 (defn topological-sort-with-grouping
   "Returns a topological sort of the adjacency map and
@@ -163,9 +163,8 @@
   (loop [g* (normalize g) results []]
     (let [nnodes (no-incoming g*)]
       (if (empty? nnodes)
-        (let [flat (mapcat identity results)]
-          (when (= (count flat) (count (nodes g)))
-            results))
+        (when (= (set (mapcat identity results)) (nodes g))
+          results)
         (recur
           (apply dissoc g* nnodes)
           (conj results (set nnodes)))))))

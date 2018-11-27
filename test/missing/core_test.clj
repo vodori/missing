@@ -188,13 +188,6 @@
     (is (= [[{:startIndex 0 :stopIndex 20} {:startIndex 5 :stopIndex 26}] [{:startIndex 28 :stopIndex 50}]]
            (contiguous-by :startIndex :stopIndex data)))))
 
-(deftest intersection-by-test
-  (let [one [{:name "Test" :id 1} {:name "Thing" :id 2}]
-        two [{:name "Bing" :id 3} {:name "Thing" :id 4}]]
-    (is (= #{{:name "Thing" :id 2} {:name "Thing" :id 4}} (intersection-by :name one two)))
-    (is (= one (intersection-by :name one)))
-    (is (= #{} (intersection-by :name)))))
-
 (deftest invert-grouping-test
   (let [m        (group-by even? (range 10))
         inverted (invert-grouping m)]
@@ -223,5 +216,13 @@
     (is (= "https://google.com/results/vodori/employees/paul"
            (join-paths s1 ["results/" "//vodori/" ["/employees" ["paul/"]]])))))
 
-(deftest left-pad-test
-  (is (= "000000test" (left-pad "test" 10 "0"))))
+(deftest collate-test
+  (let [pk           "paul.rutledge@example.com"
+        person-info  [{:id pk :name "Paul" :age 26}]
+        account-info [{:email pk :year-joined 2018}]
+        table        (collate [[:id person-info]
+                               [:email account-info]])]
+    (is (contains? table pk))
+    (is (= [(first person-info)
+            (first account-info)]
+           (table pk)))))

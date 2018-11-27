@@ -59,3 +59,8 @@
            :l [:d :e]}]
     (is (= [#{:a} #{:l :c :b} #{:m :e :d} #{:f}]
            (topological-sort-with-grouping g)))))
+
+(deftest topological-sorts-return-nil-if-cyclical
+  (let [g {:a [:b :c] :b [:a]}]
+    (is (nil? (topological-sort g)))
+    (is (nil? (topological-sort-with-grouping g)))))
