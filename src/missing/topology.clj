@@ -11,7 +11,7 @@
   [g]
   (if (some-> g meta ::normalized)
     g
-    (letfn [(nodes [g] (sets/union (apply sets/union (vals g)) (set (keys g))))]
+    (letfn [(nodes [g] (apply sets/union (set (keys g)) (map set (vals g))))]
       (let [result (reduce (fn [agg next] (update agg next (fnil set #{}))) g (nodes g))]
         (vary-meta result (fnil merge {}) {::normalized true})))))
 
