@@ -71,10 +71,10 @@
     (strings/replace s (Pattern/compile re) "")))
 
 (defn join-paths
-  "Join paths together. Never returns a leading or trailing slash
-   Accepts string arguments or collections (which will be flattened).
-   '/' delimiters already at the beginning or end of a segment will be
-   removed leaving only a single '/' between each segment."
+  "Join paths together. Accepts string arguments or collections
+   (which will be flattened). '/' delimiters already at the
+   beginning or end of a segment will be removed leaving only
+   a single '/' between each segment."
   [& paths]
   (letfn [(join [p1 p2]
             (let [part1 (rstrip p1 "/") part2 (lstrip p2 "/")]
@@ -228,6 +228,26 @@
               result
               (rf result input))))))))
   ([f coll] (sequence (dedupe-by f) coll)))
+
+
+(defn partition-with
+  "Returns a lazy sequence of partitions where a new
+   partition is created every time pred returns true.
+   Returns a transducer when only provided pred."
+  ([pred]
+   (let [ret (volatile! 0)]
+     (partition-by
+       (fn [item]
+         (if (pred item)
+           (vswap! ret inc)
+           @ret)))))
+  ([pred coll]
+   (let [ret (volatile! 0)]
+     (partition-by
+       (fn [item]
+         (if (pred item)
+           (vswap! ret inc)
+           @ret)) coll))))
 
 
 (defn lt
