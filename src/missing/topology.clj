@@ -23,29 +23,67 @@
   "Get the set of edges of graph g."
   [g] (->> g (normalize) (mapcat (fn [[k v]] (map vector (repeat k) v))) (set)))
 
-(defn incoming
+(defn consumers
   "Get all nodes with inbound edges."
   [g] (apply sets/union (vals (normalize g))))
 
-(defn no-incoming
-  "Get all nodes with no inbound edges."
-  [g] (let [g* (normalize g)]
-        (sets/difference (nodes g*) (incoming g*))))
-
-(defn outgoing
+(defn producers
   "Get all nodes with outbound edges."
   [g] (->> (miss/filter-vals not-empty g) (keys) (set)))
 
-(defn no-outgoing
+(defn sources
+  "Get all nodes with no inbound edges."
+  [g] (let [g* (normalize g)]
+        (sets/difference (nodes g*) (consumers g*))))
+
+(defn sinks
   "Get all nodes with no outbound edges."
   [g] (let [g* (normalize g)]
-        (sets/difference (nodes g*) (outgoing g*))))
+        (sets/difference (nodes g*) (producers g*))))
+
+(defn outside [g]
+  (sets/union (sources g) (sinks g)))
+
+(defn inside [g]
+  (sets/difference (nodes g) (outside g)))
 
 (defn graph
   "Create a graph from a set of edges"
   [edges]
   (letfn [(f [m [n1 n2]] (update m n1 (fnil conj #{}) n2))]
     (normalize (reduce f {} (set edges)))))
+
+(defn walk?
+  "Check if the given walk is valid for the graph."
+  [g [x1 x2 & xs]]
+  (let [g* (normalize g)]
+    (cond
+      (nil? x1) false
+      (nil? x2) (contains? g* x1)
+      (not (contains? (get g* x1) x2)) false
+      (empty? xs) true
+      :otherwise (recur g* (cons x2 xs)))))
+
+(defn walk
+  "Appends a walk onto a graph."
+  [g & path]
+  (let [g (->> (partition 2 1 path)
+               (map vec)
+               (set)
+               (sets/union (edges g))
+               (graph))]
+    (if (and (empty? g) (= 1 (count path)))
+      (assoc g (first path) #{})
+      g)))
+
+(defn unwalk
+  "Removes a walk from a graph."
+  [g & path]
+  (->> (partition 2 1 path)
+       (map vec)
+       (set)
+       (sets/difference (edges g))
+       (graph)))
 
 (defn inverse
   "Invert the graph by reversing all edges."
@@ -58,6 +96,18 @@
 (defn intersection
   "Intersect two graphs."
   [g1 g2] (graph (sets/intersection (edges g1) (edges g2))))
+
+(defn interunion
+  "The shared nodes of the graphs with all applicable edges from both graphs."
+  [g1 g2]
+  (let [shared (sets/intersection (nodes g1) (nodes g2))]
+    (reduce
+      (fn [g [from to]]
+        (if (and (contains? g from) (contains? g to))
+          (update g from (fnil conj #{}) to)
+          g))
+      (normalize (zipmap shared (repeat #{})))
+      (sets/union (edges g1) (edges g2)))))
 
 (defn difference
   "Subtract g2 from g1."
@@ -145,23 +195,12 @@
     (+ (incoming-degree g* n)
        (outgoing-degree g* n))))
 
-(defn walk?
-  "Check if the given walk is valid for the graph."
-  [g [x1 x2 & xs]]
-  (let [g* (normalize g)]
-    (cond
-      (nil? x1) false
-      (nil? x2) (contains? g* x1)
-      (not (contains? (get g* x1) x2)) false
-      (empty? xs) true
-      :otherwise (recur g* (cons x2 xs)))))
-
 (defn topological-sort-with-grouping
   "Returns a topological sort of the adjacency map and
    partition items into sets where order is arbitrary."
   [g]
   (loop [g* (normalize g) results []]
-    (let [nnodes (no-incoming g*)]
+    (let [nnodes (sources g*)]
       (if (empty? nnodes)
         (when (= (set (mapcat identity results)) (nodes g))
           results)

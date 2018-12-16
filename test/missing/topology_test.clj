@@ -10,21 +10,21 @@
             :d #{}}
            (normalize g)))))
 
-(deftest incoming-edges-test
+(deftest consumers-test
   (let [g {:a [:b :c] :b [:d]}]
-    (is #{:b :c :d} (incoming (normalize g)))))
+    (is #{:b :c :d} (consumers g))))
 
-(deftest no-incoming-edges-test
+(deftest producers-test
   (let [g {:a [:b :c] :b [:d]}]
-    (is #{:a} (no-incoming (normalize g)))))
+    (is #{:a :b} (producers g))))
 
-(deftest outgoing-edges-test
+(deftest sources-test
   (let [g {:a [:b :c] :b [:d]}]
-    (is #{:a :b} (outgoing (normalize g)))))
+    (is #{:a} (sources g))))
 
-(deftest no-outgoing-edges-test
+(deftest sinks-test
   (let [g {:a [:b :c] :b [:d]}]
-    (is #{:c :d} (no-outgoing (normalize g)))))
+    (is #{:c :d} (sinks g))))
 
 (deftest topological-sort-test
   (let [g {:a [:b :c] :b [:d]}]
