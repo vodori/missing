@@ -163,25 +163,17 @@ program never act on behalf of the same value (often an identifier) at the same 
 
 ```clojure 
 
-(require '[missing.locks :refer :all])
+(require '[missing.locks :as locks])
 
-(locking "user-id"
-  (update-user (fn [user] (assoc user :email "new-email@gmail.com")))
+(locks/locking "user-id" (update-user user))
 
 ; you can also subdivide the exclusive scope by wrapping 
-; evaluation with your own lock tables.
+; evaluation with your own lock tables (a map in an atom)
 
-(def read-locks (atom {}))
-(def write-locks (atom {}))
+(def profile-locks (atom {}))
 
-(with-locks read-locks 
-    (locking "user-id"
-        (get-user "user-id")))
-
-(with-locks write-locks 
-    (locking "user-id"
-        (update-user (fn [user] (assoc user :email "new-email@gmail.com"))))
-
+(locks/with-locks profile-locks
+  (locks/locking "user-id" (update-user user)))
 ```
 
 ___
@@ -229,6 +221,32 @@ segments. It works on any comparables and is lazy.
 ```
 
 ___
+
+#### Preemptables
+
+Sometimes you want to bail on further computation if you happen
+to discover a result early but you don't want to restructuring 
+your code to plan for the early termination. Preemptables offer
+a generic solution to this problem by utilizing exceptions as a
+pseudo-continuation.
+
+```clojure
+
+; preemptable marks the place that preempt can provide a value for.
+; preempt provides a value and throws to unwind the stack rather than
+; continue the computation. If you never call preempt then the return
+; value is equal to the result of the entire expression.
+
+(preemptable
+ (dotimes [x 1000]
+   (if (and (pos? x) (even? x))
+     (preempt x)
+     x)))
+```
+
+___
+
+
 
 #### Graph Functions
 
