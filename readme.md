@@ -225,7 +225,7 @@ ___
 #### Preemptables
 
 Sometimes you want to bail on further computation if you happen
-to discover a result early but you don't want to restructuring 
+to discover a result early but you don't want to restructure 
 your code to plan for the early termination. Preemptables offer
 a generic solution to this problem by utilizing exceptions as a
 pseudo-continuation.
