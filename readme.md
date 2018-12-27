@@ -235,13 +235,15 @@ pseudo-continuation.
 ; preemptable marks the place that preempt can provide a value for.
 ; preempt provides a value and throws to unwind the stack rather than
 ; continue the computation. If you never call preempt then the return
-; value is equal to the result of the entire expression.
+; value is equal to the result of the entire evaluation.
 
 (preemptable
  (dotimes [x 1000]
    (if (and (pos? x) (even? x))
      (preempt x)
      x)))
+; => 2
+
 ```
 
 ___
