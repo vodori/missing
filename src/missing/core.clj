@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as strings]
             [clojure.set :as sets]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [clojure.walk :as walk])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
            (java.time Duration)
@@ -29,6 +30,16 @@
   [pred m]
   (letfn [(f [agg k v] (if (pred v) (assoc! agg k v) agg))]
     (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
+
+(defn remove-keys
+  "Filter a map by the complement of predicate on its keys"
+  [pred m]
+  (filter-keys (complement pred) m))
+
+(defn remove-vals
+  "Filter a map by the complement of predicate on its values"
+  [pred m]
+  (filter-vals (complement pred) m))
 
 (defn map-keys
   "Transform the keys of a map"
@@ -89,6 +100,45 @@
   "Index the items of a collection into a map by a key"
   [key-fn coll]
   (into {} (map (juxt key-fn identity)) coll))
+
+(def ^:dynamic *preempt* nil)
+
+(defn preempt
+  "To be used inside of a preemptable. Call preempt within a preemptable
+  to deliver a return value for the entire preemptable and abort further
+  computation by unwinding the stack with an exception."
+  [result]
+  (if (thread-bound? #'*preempt*)
+     (throw (ex-info "" {::stone (reset! *preempt* result)}))
+     (throw (ex-info "Cannot preempt code not wrapped in preemptable!" {}))))
+
+(defmacro preemptable
+  "Mark a point in the stack that can be the target of a preemption.
+   Calling preempt within a preemtable will result in the value of
+   the preemptable being the value passed to preempt if called, otherwise
+   the value of the preemptable will be the result of the complete evaluation
+   of the interior."
+  [& body]
+  `(binding [*preempt* (atom ::none)]
+     (try
+       (let [result# (do ~@body) stone# @*preempt*]
+         (if (= stone# ::none) result# stone#))
+       (catch Exception e#
+         (let [stone# @*preempt*]
+           (if (= stone# ::none) (throw e#) stone#))))))
+
+(defn dfs-preorder
+  "Depth first search (preorder) through a form for the first form that matches pred."
+  [pred form]
+  (preemptable (walk/prewalk #(if (pred %) (preempt %) %) form)))
+
+(defn dfs-postorder
+  "Depth first search (postorder) through a form for the first form that matches pred."
+  [pred form]
+  (preemptable (walk/postwalk #(if (pred %) (preempt %) %) form)))
+
+(defn none? [pred coll]
+  (every? (complement pred) coll))
 
 (defn contains-all?
   "Does coll contain every key?"
