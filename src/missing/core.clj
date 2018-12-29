@@ -3,6 +3,7 @@
             [clojure.string :as strings]
             [clojure.set :as sets]
             [clojure.edn :as edn]
+            [missing.paths :as paths]
             [clojure.walk :as walk])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
@@ -69,6 +70,44 @@
 (defn not-blank? [s]
   ((complement strings/blank?) s))
 
+(defn assoc*
+  "Like assoc, but assumes associng into nil with an integer
+   key means 'I want a vector' and not 'I want a map'"
+  ([m k v]
+   (assoc (or m (if (int? k) [] {})) k v))
+  ([map key val & kvs]
+   (reduce (fn [agg [k v]] (assoc* agg k v)) (assoc* map key val) (partition 2 kvs))))
+
+(defn assoc*-in
+  "Like assoc-in but with assoc* semantics."
+  [m [k & ks] v]
+  (if ks
+    (assoc* m k (assoc*-in (get m k) ks v))
+    (assoc* m k v)))
+
+(defn update*
+  "Like update, but with assoc* semantics."
+  ([m k f]
+   (assoc* m k (f (get m k))))
+  ([m k f x]
+   (assoc* m k (f (get m k) x)))
+  ([m k f x y]
+   (assoc* m k (f (get m k) x y)))
+  ([m k f x y z]
+   (assoc* m k (f (get m k) x y z)))
+  ([m k f x y z & more]
+   (assoc* m k (apply f (get m k) x y z more))))
+
+(defn update*-in
+  "Like update-in, but with assoc* semantics."
+  ([m ks f & args]
+   (let [up (fn up [m ks f args]
+              (let [[k & ks] ks]
+                (if ks
+                  (assoc* m k (up (get m k) ks f args))
+                  (assoc* m k (apply f (get m k) args)))))]
+     (up m ks f args))))
+
 (defn lstrip
   "Strip a prefix from a string."
   [s strip]
@@ -109,8 +148,8 @@
   computation by unwinding the stack with an exception."
   [result]
   (if (thread-bound? #'*preempt*)
-     (throw (ex-info "" {::stone (reset! *preempt* result)}))
-     (throw (ex-info "Cannot preempt code not wrapped in preemptable!" {}))))
+    (throw (ex-info "" {::stone (reset! *preempt* result)}))
+    (throw (ex-info "Cannot preempt code not wrapped in preemptable!" {}))))
 
 (defmacro preemptable
   "Mark a point in the stack that can be the target of a preemption.
@@ -130,12 +169,12 @@
 (defn dfs-preorder
   "Depth first search (preorder) through a form for the first form that matches pred."
   [pred form]
-  (preemptable (walk/prewalk #(if (pred %) (preempt %) %) form)))
+  (preemptable (walk/prewalk #(if (pred %) (preempt %) %) form) nil))
 
 (defn dfs-postorder
   "Depth first search (postorder) through a form for the first form that matches pred."
   [pred form]
-  (preemptable (walk/postwalk #(if (pred %) (preempt %) %) form)))
+  (preemptable (walk/postwalk #(if (pred %) (preempt %) %) form) nil))
 
 (defn none? [pred coll]
   (every? (complement pred) coll))
@@ -533,12 +572,38 @@
   (groupcat-by (comp submaps f) coll))
 
 (defn collate
-  "Given sequence of [key-fn coll] pairs, create a lookup table
-   from disparate data sets. Define how to compute the
-   primary key from each set and it'll give you back a map
-   of rows indexed by the row key."
+  "Given a map or sequence of [key-fn coll] pairs, create a
+   lookup table from disparate data sets. Define how to compute
+   the primary key from each set and it'll give you back a map
+   of rows of primary key to sequence of 'columns'."
   [f+colls]
-  (let [idxs (mapv (partial apply index-by) f+colls)]
+  (let [idxs (mapv #(index-by (first %) (second %)) f+colls)]
     (->> (set (mapcat keys idxs))
          (map (juxt identity #(mapv (fn [idx] (get idx %)) idxs)))
          (into {}))))
+
+(defn paths
+  "Returns all the paths into a data structure. Paths are compatible
+   with `(get-in form path)`."
+  [form]
+  (map second (paths/path-seq form)))
+
+(defn index-values-by-paths
+  "Returns a map of path => value at path for any data structure"
+  [form]
+  (->> (paths/path-seq form) (map (comp vec reverse)) (into {})))
+
+(defn structural-extractor
+  "Given any clojure structure, return a function that will extract
+  that same structure from data that may only share part of the
+  structure (or may have more than the original structure)."
+  [structure]
+  (fn [form]
+    (letfn [(reducer [agg path]
+              (assoc*-in agg path (get-in form path)))]
+      (reduce reducer (empty structure) (paths structure)))))
+
+(defn select-structure
+  "Like select-keys except mimics the structure provided by the second argument."
+  [m structure]
+  ((structural-extractor structure) m))

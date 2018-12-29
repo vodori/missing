@@ -43,10 +43,3 @@
   "Returns a sequence of [value path] tuples."
   [form]
   (path-seq* form nil))
-
-(defn index-values-by-paths
-  "Returns a map of path => value at path for any data structure"
-  [form]
-  (->> (path-seq form)
-       (map (comp vec reverse))
-       (into {})))
