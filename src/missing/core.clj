@@ -598,10 +598,11 @@
   that same structure from data that may only share part of the
   structure (or may have more than the original structure)."
   [structure]
-  (fn [form]
-    (letfn [(reducer [agg path]
-              (assoc*-in agg path (get-in form path)))]
-      (reduce reducer (empty structure) (paths structure)))))
+  (let [paths (paths structure)]
+    (fn [form]
+      (letfn [(reducer [agg path]
+                (assoc*-in agg path (get-in form path)))]
+        (reduce reducer (empty structure) paths)))))
 
 (defn select-structure
   "Like select-keys except mimics the structure provided by the second argument."
