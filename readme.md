@@ -232,6 +232,8 @@ pseudo-continuation.
 
 ```clojure
 
+(require '[missing.core :refer :all])
+
 ; preemptable marks the place that preempt can provide a value for.
 ; preempt provides a value and throws to unwind the stack rather than
 ; continue the computation. If you never call preempt then the return
@@ -249,6 +251,32 @@ pseudo-continuation.
 ___
 
 
+#### Structural Selections
+
+Sometimes you want flat data that describes the structure of 
+nested data. Missing provides a path protocol and implementations 
+to extract a path to each leaf in a piece of data. There's even
+a function that will "select" a given structure from another piece
+of data by example.
+
+```clojure
+
+(require '[missing.core :refer :all])
+
+(index-values-by-paths {:a [:b {:c :d}]})
+; => {[:a 0] :b, [:a 1 :c] :d}
+
+(select-structure 
+  ; data to extract from
+  {:a [1 {:test [4 [{:one 5}]]}] :extra :stuff}
+  ; example structure to use for the extraction
+  {:a [:b {:test [:thing [{:one :two :three 4}]]} :d]})
+  
+; => {:a [1 {:test [4 [{:one 5 :three nil}]]} nil]}
+
+```
+
+___
 
 #### Graph Functions
 

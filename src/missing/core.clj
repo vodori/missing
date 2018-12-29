@@ -575,7 +575,7 @@
   "Given a map or sequence of [key-fn coll] pairs, create a
    lookup table from disparate data sets. Define how to compute
    the primary key from each set and it'll give you back a map
-   of rows of primary key to sequence of 'columns'."
+   of primary key to sequence of 'columns'."
   [f+colls]
   (let [idxs (mapv #(index-by (first %) (second %)) f+colls)]
     (->> (set (mapcat keys idxs))
