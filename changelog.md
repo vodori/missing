@@ -1,3 +1,8 @@
+## 0.1.6
+
+* Added `structural-extractor` and `select-structure`
+* Fixed mistake in missing.topology/inverse implementation so that it now preserves nodes with no edges.
+
 ## 0.1.5
 
 * Added `preemptable` / `preempt`
