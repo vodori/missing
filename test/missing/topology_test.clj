@@ -64,3 +64,7 @@
   (let [g {:a [:b :c] :b [:a]}]
     (is (nil? (topological-sort g)))
     (is (nil? (topological-sort-with-grouping g)))))
+
+(deftest inverse-preserves-nodes-with-no-edges
+  (let [g {:a [:b :c] :d #{}}]
+    (is (= {:c #{:a}, :b #{:a}, :d #{}, :a #{}} (inverse g)))))

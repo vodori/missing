@@ -1,5 +1,6 @@
 (ns missing.topology
   "Simple graph functions for graphs in adjacency map form."
+  (:refer-clojure :exclude (empty))
   (:require [missing.core :as miss]
             [clojure.set :as sets]))
 
@@ -22,6 +23,11 @@
 (defn edges
   "Get the set of edges of graph g."
   [g] (->> g (normalize) (mapcat (fn [[k v]] (map vector (repeat k) v))) (set)))
+
+(defn empty
+  "Returns a graph with the same nodes as g but no edges."
+  [g]
+  (zipmap (nodes g) (repeat #{})))
 
 (defn consumers
   "Get all nodes with inbound edges."
@@ -85,9 +91,24 @@
        (sets/difference (edges g))
        (graph)))
 
+(defn append-edge
+  "Appends an edge to a graph."
+  [g [from to]]
+  (update (normalize g) from (fnil conj #{}) to))
+
+(defn remove-edge
+  "Removes an edge from a graph."
+  [g [from to]]
+  (let [g* (normalize g)]
+    (if (contains? g* from)
+      (update g* from (fnil disj #{}) to)
+      g*)))
+
 (defn inverse
   "Invert the graph by reversing all edges."
-  [g] (->> (edges g) (map (comp vec reverse)) (graph)))
+  [g] (->> (edges g)
+           (map (comp vec reverse))
+           (reduce append-edge (empty g))))
 
 (defn union
   "Union two graphs together."
