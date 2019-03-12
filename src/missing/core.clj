@@ -32,6 +32,10 @@
   (letfn [(f [agg k v] (if (pred v) (assoc! agg k v) agg))]
     (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
 
+(defn filter-entries [pred m]
+  (letfn [(f [agg k v] (if (and (pred k) (pred v)) (assoc! agg k v) agg))]
+    (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
+
 (defn remove-keys
   "Filter a map by the complement of predicate on its keys"
   [pred m]
@@ -53,6 +57,27 @@
   [f m]
   (letfn [(f* [agg k v] (assoc! agg k (f v)))]
     (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
+
+(defn map-entries
+  "Transform the entries of a map"
+  [f m]
+  (letfn [(f* [agg k v] (assoc! agg (f k) (f v)))]
+    (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
+
+(defn keep-keys
+  "Map and only keep non-nil keys."
+  [f m]
+  (->> (map-keys f m) (filter-keys some?)))
+
+(defn keep-vals
+  "Map and only keep non-nil values."
+  [f m]
+  (->> (map-vals f m) (filter-vals some?)))
+
+(defn keep-entries
+  "Map and only keep entries with non-nil keys and values."
+  [f m]
+  (->> (map-entries f m) (filter-entries some?)))
 
 (defn reverse-map
   "Invert a map"
@@ -175,6 +200,44 @@
   "Depth first search (postorder) through a form for the first form that matches pred."
   [pred form]
   (preemptable (walk/postwalk #(if (pred %) (preempt %) %) form) nil))
+
+(defn walk-seq
+  "Returns a vector of all forms within form."
+  [form]
+  (let [shapes (volatile! [])]
+    (walk/postwalk
+      (fn [inner-form]
+        (vswap! shapes conj inner-form)
+        inner-form) form)
+    (deref shapes)))
+
+(defn paging
+  "A function that returns a lazily generating sequence
+  backed by a paged source. Takes a function that receives
+  an offset and limit and returns the page for those parameters.
+
+    :f A function of two arguments (offset and limit) that fetches some kind of results.
+
+    :limit A number representing how many objects to fetch per page. Defaults to 256.
+
+    :offset A number representing what index to start getting results from. Defaults to 0.
+  "
+  ([f] (paging 256 f))
+  ([limit f] (paging 0 limit f))
+  ([offset limit f]
+   (let [last-page-size (volatile! 0)]
+     (letfn [(augmented-f [offset limit]
+               (let [result (f offset limit)]
+                 (vreset! last-page-size (count result)) result))
+             (fetcher [offset limit]
+               (lazy-seq
+                 (concat
+                   (augmented-f offset limit)
+                   (let [c @last-page-size]
+                     (if-not (< c limit)
+                       (fetcher (+ offset c) limit)
+                       '())))))]
+       (fetcher offset limit)))))
 
 (defn none? [pred coll]
   (every? (complement pred) coll))
@@ -535,6 +598,28 @@
   [filename]
   (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
 
+(defn uniqueifier
+  "Returns a function that will always produce a unique name
+  for any provided name. The first time it will be the name as-is
+  and subsequent calls will append some count. You're guaranteed that
+  the range of the produced function has zero duplicates. When these
+  names are filenames the number is appended conveniently before the extension."
+  []
+  (let [seen-names (atom #{})
+        get-modified
+                   (fn [name]
+                     (let [extension (or (get-extension name) "")
+                           filename  (get-filename name)]
+                       (->> (range)
+                            (map #(str filename "(" (inc %) ")" extension))
+                            (filter #(not (contains? @seen-names %)))
+                            (first))))]
+    (fn [name]
+      (if (contains? @seen-names name)
+        (recur (get-modified name))
+        (do (swap! seen-names conj name)
+            name)))))
+
 (defn subsets
   "Returns all the subsets of a collection"
   [coll]
@@ -548,6 +633,11 @@
   "Returns all the submaps of a map"
   [m]
   (->> m (seq) (subsets) (map (partial into {})) (set)))
+
+(defn submap?
+  "Is m1 a submap of m2?"
+  [m1 m2]
+  (contains? (submaps m2) m1))
 
 (defn indexcat-by
   "Like index-by except f is allowed to return a sequence of keys
@@ -575,7 +665,7 @@
   "Given a map or sequence of [key-fn coll] pairs, create a
    lookup table from disparate data sets. Define how to compute
    the primary key from each set and it'll give you back a map
-   of primary key to sequence of 'columns'."
+   of primary key to vector of 'columns'."
   [f+colls]
   (let [idxs (mapv #(index-by (first %) (second %)) f+colls)]
     (->> (set (mapcat keys idxs))

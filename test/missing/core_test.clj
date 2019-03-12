@@ -230,16 +230,56 @@
 (deftest paths-test
   (testing "I can extract all paths to all values contained in a structure."
     (let [structure {:test [:things [{:more 1} {:more 2}] #{"one" {:whoa :sweet :things [1 2]}}]}]
-      (is (= {[:test 0] :things,
-              [:test 1 0 :more] 1,
-              [:test 1 1 :more] 2,
-              [:test 2 {:whoa :sweet, :things [1 2]} :whoa] :sweet,
+      (is (= {[:test 0]                                         :things,
+              [:test 1 0 :more]                                 1,
+              [:test 1 1 :more]                                 2,
+              [:test 2 {:whoa :sweet, :things [1 2]} :whoa]     :sweet,
               [:test 2 {:whoa :sweet, :things [1 2]} :things 0] 1,
               [:test 2 {:whoa :sweet, :things [1 2]} :things 1] 2,
-              [:test 2 "one"] "one"}
+              [:test 2 "one"]                                   "one"}
              (index-values-by-paths structure))))))
 
 (deftest select-structure-test
   (let [example {:a [:b {:test [:thing [{:one :two :three 4}]]} :d]}]
     (is (= {:a [1 {:test [4 [{:one 5, :three nil}]]} nil]}
            (select-structure {:a [1 {:test [4 [{:one 5}]]}]} example)))))
+
+(deftest paging-test
+  (let [source  (vec (range 100))
+        counter (atom 0)
+        fetch   (fn [offset limit]
+                  (swap! counter inc)
+                  (subvec source
+                          (min offset (count source))
+                          (min (+ offset limit) (count source))))]
+
+    (let [stream (paging 25 fetch)]
+      (is (= 0 @counter))
+      (is (= source (vec stream)))
+      (is (= 5 @counter)))
+
+    (reset! counter 0)
+
+    (let [stream (paging 25 fetch)]
+      (is (= (range 25) (take 25 stream)))
+      (is (= 1 @counter))
+      (is (= (range 26) (take 26 stream)))
+      (is (= 2 @counter)))))
+
+(deftest uniqueifier-test
+  (testing "Uniquifying a few names"
+    (let [uniq (uniqueifier)]
+      (is (= "stuff.pdf" (uniq "stuff.pdf")))
+      (is (= "stuff(1).pdf" (uniq "stuff.pdf")))
+      (is (= "stuff(2).pdf" (uniq "stuff.pdf")))
+      (is (= "stuff(1)(1).pdf" (uniq "stuff(1).pdf")))))
+
+  (testing "Trying weird filenames"
+    (let [uniq (uniqueifier)]
+      (is (= "stuff(1)" (uniq "stuff(1)")))
+      (is (= "cats" (uniq "cats")))
+      (is (= "stuff(1)(1)" (uniq "stuff(1)")))
+      (is (= "cats(1)" (uniq "cats")))
+      (is (= "dogs.stuff.txt.pdf" (uniq "dogs.stuff.txt.pdf")))
+      (is (= "dogs.stuff.txt(1).pdf" (uniq "dogs.stuff.txt.pdf")))
+      (is (= "dogs.stuff.txt(2).pdf" (uniq "dogs.stuff.txt.pdf"))))))
