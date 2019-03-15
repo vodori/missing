@@ -698,3 +698,13 @@
   "Like select-keys except mimics the structure provided by the second argument."
   [m structure]
   ((structural-extractor structure) m))
+
+(defmacro defonce-protocol
+  "Like defprotocol but won't reload the protocol when you reload the ns."
+  [sym & body]
+  `(defonce ~(symbol (str (name sym) "_")) (defprotocol ~sym ~@body)))
+
+(defmacro defmethodset
+  "Like defmethod but allows for specifying implementations of multiple dispatch keys at once."
+  [symbol dispatch-keys & body]
+  `(doseq [dispatch# ~dispatch-keys] (defmethod ~symbol dispatch# ~@body)))
