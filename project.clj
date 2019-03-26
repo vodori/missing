@@ -1,4 +1,4 @@
-(defproject com.vodori/missing "0.1.7"
+(defproject com.vodori/missing "0.1.8-SNAPSHOT"
 
   :description
   "A utility library for Clojure of functions and macros that are frequently missed and recreated."
