@@ -23,6 +23,11 @@
     [:name "Jesse Krantzler"]
     [:url "https://github.com/jesse-krantzler"]
     [:email "jesse.krantzler@vodori.com"]
+    [:timezone "-5"]]
+   [:developer
+    [:name "Griffin Lacek"]
+    [:url "https://github.com/griffinlacek"]
+    [:email "griffin.lacek@vodori.com"]
     [:timezone "-5"]]]
 
   :deploy-repositories
