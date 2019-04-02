@@ -318,8 +318,8 @@
        (drop-while (comp (complement pred) second))
        (first)))
 
-(defn sort-by-value
-  "Sort a map by its values"
+(defn sort-by-value-descending
+  "Sort a map by its values, descending."
   [m]
   (into
     (sorted-map-by
@@ -327,6 +327,17 @@
         (compare
           [(get m key2) key2]
           [(get m key1) key1])))
+    m))
+
+(defn sort-by-value-ascending
+  "Sort a map by its values, ascending."
+  [m]
+  (into
+    (sorted-map-by
+      (fn [key1 key2]
+        (compare
+          [(get m key1) key1]
+          [(get m key2) key2])))
     m))
 
 (defn dissoc-in

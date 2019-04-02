@@ -241,3 +241,50 @@
   "Are there cycles in this graph?"
   [g]
   (nil? (topological-sort g)))
+
+(defn shortest-paths
+  "Uses Floyd-Warshall to returns a map of
+   {[source destination] {:distance <num> :path [source ... destination]}}
+   for the given graph. Uses weight-fn (a function of two nodes) to assign a
+   cost to edges."
+  ([g] (shortest-paths g (constantly 1)))
+  ([g weight-fn]
+   (let [g* (normalize g)
+         ns (nodes g*)
+         es (edges g*)
+         {:keys [dist next]}
+         (as-> {:dist {} :next {}} agg
+               (reduce
+                 (fn [{:keys [dist next]} [u v]]
+                   {:dist (assoc dist [u v] (weight-fn u v))
+                    :next (assoc next [u v] v)})
+                 agg
+                 es)
+               (reduce
+                 (fn [{:keys [dist next]} v]
+                   {:dist (assoc dist [v v] 0)
+                    :next (assoc next [v v] v)})
+                 agg
+                 ns)
+               (reduce
+                 (fn [{:keys [dist next] :as agg} [i j k]]
+                   (let [candidate
+                         (+ (get dist [i k] Double/POSITIVE_INFINITY)
+                            (get dist [k j] Double/POSITIVE_INFINITY))]
+                     (if (> (get dist [i j] Double/POSITIVE_INFINITY) candidate)
+                       {:dist (assoc dist [i j] candidate)
+                        :next (assoc next [i j] (get next [i k]))}
+                       agg)))
+                 agg
+                 (for [i ns j ns k ns] [i j k])))]
+     (->> (for [u ns v ns]
+            [[u v] (if (get next [u v])
+                     (loop [u u path [u]]
+                       (if-not (= u v)
+                         (let [new-u (get next [u v])]
+                           (recur new-u (conj path new-u)))
+                         path))
+                     [])])
+          (remove (comp empty? second))
+          (map (fn [[k v]] [k {:distance (get dist k) :path v}]))
+          (into {})))))

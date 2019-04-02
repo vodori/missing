@@ -68,3 +68,20 @@
 (deftest inverse-preserves-nodes-with-no-edges
   (let [g {:a [:b :c] :d #{}}]
     (is (= {:c #{:a}, :b #{:a}, :d #{}, :a #{}} (inverse g)))))
+
+(deftest shortest-paths-test
+  (let [g {:a [:b :c] :c [:d] :d [:e] :b [:e]}]
+    (is (= {[:b :e] {:distance 1, :path [:b :e]},
+            [:c :d] {:distance 1, :path [:c :d]},
+            [:c :e] {:distance 2, :path [:c :d :e]},
+            [:e :e] {:distance 0, :path [:e]},
+            [:a :d] {:distance 2, :path [:a :c :d]},
+            [:d :e] {:distance 1, :path [:d :e]},
+            [:a :a] {:distance 0, :path [:a]},
+            [:a :b] {:distance 1, :path [:a :b]},
+            [:d :d] {:distance 0, :path [:d]},
+            [:b :b] {:distance 0, :path [:b]},
+            [:a :c] {:distance 1, :path [:a :c]},
+            [:a :e] {:distance 2, :path [:a :b :e]},
+            [:c :c] {:distance 0, :path [:c]}}
+           (shortest-paths g)))))
