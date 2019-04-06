@@ -85,3 +85,30 @@
             [:a :e] {:distance 2, :path [:a :b :e]},
             [:c :c] {:distance 0, :path [:c]}}
            (shortest-paths g)))))
+
+(deftest cycles-and-shortest-paths
+  (let [g     {"application/pdf" #{"image/*"}
+               "image/*"         #{"image/png" "image/gif" "image/jpeg"}
+               "image/png"       #{"image/*"}
+               "image/gif"       #{"image/*"}
+               "image/jpeg"      #{"image/*"}
+               "image/tiff"      #{"application/pdf"}}
+        paths (shortest-paths g)]
+    (are [source target] (contains? paths [source target])
+      "image/tiff" "image/png"
+      "image/tiff" "image/gif"
+      "image/tiff" "image/jpeg"
+      "image/tiff" "application/pdf"
+      "image/png" "image/png"
+      "image/png" "image/jpeg"
+      "image/png" "image/gif"
+      "image/png" "image/*"
+      "image/gif" "image/gif"
+      "image/gif" "image/jpeg"
+      "image/gif" "image/png"
+      "image/jpeg" "image/jpeg"
+      "image/jpeg" "image/png"
+      "image/jpeg" "image/gif"
+      "image/jpeg" "image/*"
+      "image/png" "image/*"
+      "image/gif" "image/*")))

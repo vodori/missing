@@ -242,6 +242,18 @@
   [g]
   (nil? (topological-sort g)))
 
+(defn transitive-closure
+  "Creates new edges on g such that every node connects directly to any
+   node that could previously have been connected indirectly."
+  [g]
+  (loop [graph* (normalize g)]
+    (letfn [(expand-one [k g* v]
+              (update g* k (fnil sets/union #{}) (get g* v #{})))
+            (expand-entry [g* [k vs]]
+              (reduce (partial expand-one k) g* vs))]
+      (let [expanded (reduce expand-entry graph* graph*)]
+        (if (= expanded graph*) expanded (recur expanded))))))
+
 (defn shortest-paths
   "Uses Floyd-Warshall to returns a map of
    {[source destination] {:distance <num> :path [source ... destination]}}
@@ -250,22 +262,26 @@
   ([g] (shortest-paths g (constantly 1)))
   ([g weight-fn]
    (let [g* (normalize g)
-         ns (nodes g*)
+         ns (vec (nodes g*))
          es (edges g*)
          {:keys [dist next]}
-         (as-> {:dist {} :next {}} agg
+         (as-> {:dist {} :next {}} reduction
                (reduce
                  (fn [{:keys [dist next]} [u v]]
-                   {:dist (assoc dist [u v] (weight-fn u v))
-                    :next (assoc next [u v] v)})
-                 agg
-                 es)
-               (reduce
-                 (fn [{:keys [dist next]} v]
-                   {:dist (assoc dist [v v] 0)
-                    :next (assoc next [v v] v)})
-                 agg
-                 ns)
+                   (cond
+                     (contains? es [u v])
+                     {:dist (assoc dist [u v] (weight-fn u v))
+                      :next (assoc next [u v] v)}
+
+                     (= u v)
+                     {:dist (assoc dist [v v] 0)
+                      :next (assoc next [v v] v)}
+
+                     :otherwise
+                     {:dist (assoc dist [u v] Double/POSITIVE_INFINITY)
+                      :next (assoc next [u v] nil)}))
+                 reduction
+                 (for [i ns j ns] [i j]))
                (reduce
                  (fn [{:keys [dist next] :as agg} [i j k]]
                    (let [candidate
@@ -275,8 +291,8 @@
                        {:dist (assoc dist [i j] candidate)
                         :next (assoc next [i j] (get next [i k]))}
                        agg)))
-                 agg
-                 (for [i ns j ns k ns] [i j k])))]
+                 reduction
+                 (for [k ns i ns j ns] [i j k])))]
      (->> (for [u ns v ns]
             [[u v] (if (get next [u v])
                      (loop [u u path [u]]
