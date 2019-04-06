@@ -1,3 +1,18 @@
+## 0.1.9
+
+* Added `transitive-closure`.
+* Fixed a mistake in `shortest-paths` that caused missed paths.
+
+## 0.1.8
+
+* Added `shortest-paths`, an implementation of floyd-warshall that produces
+the transitive closure of a graph with minimum distance paths.
+
+## 0.1.7
+
+* Added `paging`, `keep-keys`, `keep-vals`, `keep-entries`, `uniqueifier`
+* Added `defonce-protocol` and `defmethodset`
+
 ## 0.1.6
 
 * Added `structural-extractor` and `select-structure`
