@@ -61,8 +61,8 @@
     (is (= 9 ((lift-by (partial * 3) f) 1)))))
 
 (deftest deep-merge-test
-  (let [m1 {1 {:stuff 3 :thing 2} 2 4} m2 {1 {:things 4 :stuff 5}}]
-    (is (= {1 {:thing 2 :stuff 5 :things 4} 2 4} (deep-merge m1 m2)))))
+  (let [m1 {1 {:stuff 3 :thing 2 :other 100} 2 4 :ten 10} m2 {1 {:things 4 :stuff 5 :other nil} :ten nil}]
+    (is (= {1 {:thing 2 :stuff 5 :things 4 :other nil} 2 4 :ten nil} (deep-merge m1 m2)))))
 
 (deftest key=-test
   (is (key= :stuff :stuff))

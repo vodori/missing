@@ -292,7 +292,7 @@
             (let [ms (remove nil? maps)]
               (if (every? map? ms)
                 (apply merge-with inner-merge ms)
-                (last ms))))]
+                (last maps))))]
     (apply inner-merge maps)))
 
 (defn key=
