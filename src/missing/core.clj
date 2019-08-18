@@ -4,6 +4,7 @@
             [clojure.set :as sets]
             [clojure.edn :as edn]
             [missing.paths :as paths]
+            [missing.logging :as log]
             [clojure.walk :as walk])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
@@ -372,7 +373,7 @@
                          (if (contains? seen k)
                            (recur (rest s) seen)
                            (cons x (step (rest s) (conj seen k)))))))
-                    xs seen)))]
+                   xs seen)))]
      (step coll #{}))))
 
 (defn dedupe-by
@@ -559,6 +560,37 @@
          result# (do ~@body)
          stop#   (System/nanoTime)]
      [(/ (- stop# start#) (double 1E6)) result#]))
+
+(defn polling-atom
+  "Returns an atom backed by background polling of a function. Change
+   the value of the atom to :stop in order to halt the polling process.
+   Exceptions during the invocation of the process log but will not mutate
+   the value. Supply your own reducer to combine results of successive polls."
+  ([freq f]
+   (polling-atom {} freq f))
+  ([init freq f]
+   (polling-atom #(identity %2) init freq f))
+  ([reducer init freq f]
+   (let [state  (atom init)
+         stop   (atom false)
+         millis (if (instance? Duration freq) (.toMillis freq) freq)]
+     (add-watch state :closer #(when (= :stop %4) (reset! stop true)))
+     (doto (Thread.
+             ^Runnable
+             (fn []
+               (let
+                 [stop? @stop
+                  [time]
+                  (timing
+                    (try
+                      (let [[success? result] (with-timeout millis (f))]
+                        (when success? (swap! state reducer result)))
+                      (catch Exception e (log/error e))))]
+                 (Thread/sleep (max (- millis time) 0))
+                 (when-not stop? (recur)))))
+       (.setDaemon true)
+       (.start))
+     state)))
 
 (defn run-par!
   "Like run! but executes each element concurrently."

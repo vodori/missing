@@ -15,23 +15,29 @@
   :pom-addition
   [:developers
    [:developer
-    [:name "Paul Rutledge"]
-    [:url "https://github.com/rutledgepaulv"]
-    [:email "paul.rutledge@vodori.com"]
-    [:timezone "-5"]]
-   [:developer
-    [:name "Jesse Krantzler"]
-    [:url "https://github.com/jesse-krantzler"]
-    [:email "jesse.krantzler@vodori.com"]
+    [:name "Julia Cicale"]
+    [:url "https://github.com/jcicale"]
+    [:email "julia.cicale@vodori.com"]
     [:timezone "-5"]]
    [:developer
     [:name "Griffin Lacek"]
     [:url "https://github.com/griffinlacek"]
     [:email "griffin.lacek@vodori.com"]
-    [:timezone "-5"]]]
+    [:timezone "-5"]]
+   [:developer
+    [:name "Paul Rutledge"]
+    [:url "https://github.com/rutledgepaulv"]
+    [:email "paul.rutledge@vodori.com"]
+    [:timezone "-5"]]
+   [:developer
+    [:name "Travis Stom"]
+    [:url "https://github.com/travisstom"]
+    [:email "travis.stom@vodori.com"]
+    [:timezone "-4"]]]
 
   :deploy-repositories
   {"releases"  {:url "https://oss.sonatype.org/service/local/staging/deploy/maven2/" :creds :gpg}
    "snapshots" {:url "https://oss.sonatype.org/content/repositories/snapshots/" :creds :gpg}}
 
-  :dependencies [[org.clojure/clojure "1.10.0"]])
+  :dependencies [[org.clojure/clojure "1.10.1"]
+                 [com.taoensso/timbre "4.10.0"]])

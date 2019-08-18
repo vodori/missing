@@ -158,11 +158,11 @@
 
 (defn supergraph?
   "Is g1 a supergraph of g2?"
-  [g1 g2] (sets/subset? (edges g2) (edges g1)))
+  [g1 g2] (sets/superset? (edges g1) (edges g2)))
 
 (defn subgraph?
   "Is g1 a subgraph of g2?"
-  [g1 g2] (supergraph? g2 g1))
+  [g1 g2] (sets/subset? (edges g1) (edges g2)))
 
 (defn traversal
   "Return a depth first traversal of the graph, beginning at node start."
