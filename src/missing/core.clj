@@ -4,12 +4,13 @@
             [clojure.set :as sets]
             [clojure.edn :as edn]
             [missing.paths :as paths]
-            [missing.logging :as log]
             [clojure.walk :as walk])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
            (java.time Duration)
-           (java.util.regex Pattern)))
+           (java.util.regex Pattern)
+           (java.nio.file FileSystems)
+           (java.io File)))
 
 (defn uuid
   "Get a uuid as string"
@@ -582,15 +583,30 @@
                  [stop? @stop
                   [time]
                   (timing
-                    (try
+                    (quietly
                       (let [[success? result] (with-timeout millis (f))]
-                        (when success? (swap! state reducer result)))
-                      (catch Exception e (log/error e))))]
+                        (when success? (swap! state reducer result)))))]
                  (Thread/sleep (max (- millis time) 0))
                  (when-not stop? (recur)))))
        (.setDaemon true)
        (.start))
      state)))
+
+(defn glob-matcher
+  "Returns a predicate that will match a file against a glob pattern."
+  [glob]
+  (let [matcher (.getPathMatcher (FileSystems/getDefault) (str "glob:" glob))]
+    (fn [& args] (.matches matcher (.getFileName (.toPath ^File (apply io/file args)))))))
+
+(defn glob-seq
+  "Returns a sequence of files within dir that match one of the provided glob patterns."
+  [dir & globs]
+  (if (empty? globs)
+    (file-seq (io/file dir))
+    (let [pred (->> (map glob-matcher globs) (apply some-fn))]
+      (->> (file-seq (io/file dir))
+           (filter #(.isFile %))
+           (filter #(pred %))))))
 
 (defn run-par!
   "Like run! but executes each element concurrently."

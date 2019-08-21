@@ -283,3 +283,10 @@
       (is (= "dogs.stuff.txt.pdf" (uniq "dogs.stuff.txt.pdf")))
       (is (= "dogs.stuff.txt(1).pdf" (uniq "dogs.stuff.txt.pdf")))
       (is (= "dogs.stuff.txt(2).pdf" (uniq "dogs.stuff.txt.pdf"))))))
+
+(deftest glob-seq-test
+  (testing "Globs against an exact dot file."
+    (is (= 1 (count (glob-seq (System/getenv "PWD") ".gitignore")))))
+
+  (testing "Globs against a wildcard extension."
+    (is (= #{".clj"} (set (map #(get-extension (.getName %)) (glob-seq (System/getenv "PWD") "*.clj")))))))
