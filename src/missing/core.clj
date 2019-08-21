@@ -594,19 +594,23 @@
 
 (defn glob-matcher
   "Returns a predicate that will match a file against a glob pattern."
-  [glob]
-  (let [matcher (.getPathMatcher (FileSystems/getDefault) (str "glob:" glob))]
-    (fn [& args] (.matches matcher (.getFileName (.toPath ^File (apply io/file args)))))))
+  ([glob]
+   (glob-matcher (io/file ".") glob))
+  ([dir glob]
+   (let [matcher (.getPathMatcher (FileSystems/getDefault) (str "glob:" glob))]
+     (fn [& args]
+       (->> (.toPath ^File (apply io/file args))
+            (.relativize (.toPath ^File (io/file dir)))
+            (.matches matcher))))))
 
 (defn glob-seq
-  "Returns a sequence of files within dir that match one of the provided glob patterns."
+  "Returns a sequence of files and directories nested within dir that match one of the provided glob patterns."
   [dir & globs]
-  (if (empty? globs)
-    (file-seq (io/file dir))
-    (let [pred (->> (map glob-matcher globs) (apply some-fn))]
-      (->> (file-seq (io/file dir))
-           (filter #(.isFile %))
-           (filter #(pred %))))))
+  (let [rr (io/file dir)]
+    (if (empty? globs)
+      (file-seq rr)
+      (let [pred (apply some-fn (map (partial glob-matcher rr) globs))]
+        (filter pred (file-seq rr))))))
 
 (defn run-par!
   "Like run! but executes each element concurrently."
