@@ -320,27 +320,18 @@
        (drop-while (comp (complement pred) second))
        (first)))
 
-(defn sort-by-value-descending
-  "Sort a map by its values, descending."
-  [m]
-  (into
-    (sorted-map-by
-      (fn [key1 key2]
-        (compare
-          [(get m key2) key2]
-          [(get m key1) key1])))
-    m))
-
-(defn sort-by-value-ascending
-  "Sort a map by its values, ascending."
-  [m]
-  (into
-    (sorted-map-by
-      (fn [key1 key2]
-        (compare
-          [(get m key1) key1]
-          [(get m key2) key2])))
-    m))
+(defn sorted-map-by-value
+  "Returns a sorted map with entries sorted by values. Supply
+   your own comparator if you want to reverse order or customize
+   the sort."
+  ([m] (sorted-map-by-value m compare))
+  ([m comparator]
+   (into (sorted-map-by
+           (fn [key1 key2]
+             (comparator
+               [(get m key1) key1]
+               [(get m key2) key2])))
+         m)))
 
 (defn dissoc-in
   "Dissociate a key/value from a map at a given path."
@@ -400,18 +391,18 @@
    partition is created every time pred returns true.
    Returns a transducer when only provided pred."
   ([pred]
-   (let [ret (volatile! 0)]
+   (let [ret (volatile! false)]
      (partition-by
        (fn [item]
          (if (pred item)
-           (vswap! ret inc)
+           (vswap! ret not)
            @ret)))))
   ([pred coll]
-   (let [ret (volatile! 0)]
+   (let [ret (volatile! false)]
      (partition-by
        (fn [item]
          (if (pred item)
-           (vswap! ret inc)
+           (vswap! ret not)
            @ret)) coll))))
 
 
@@ -610,7 +601,9 @@
     (if (empty? globs)
       (file-seq rr)
       (let [pred (apply some-fn (map (partial glob-matcher rr) globs))]
-        (filter pred (file-seq rr))))))
+        (->> (file-seq rr)
+             (filter pred)
+             (sort-by #(.getPath %)))))))
 
 (defn run-par!
   "Like run! but executes each element concurrently."
@@ -700,7 +693,12 @@
 (defn submap?
   "Is m1 a submap of m2?"
   [m1 m2]
-  (contains? (submaps m2) m1))
+  (sets/subset? (set (seq m1)) (set (seq m2))))
+
+(defn supermap?
+  "Is m1 a supermap of m2?"
+  [m1 m2]
+  (sets/superset? (set (seq m1)) (set (seq m2))))
 
 (defn indexcat-by
   "Like index-by except f is allowed to return a sequence of keys

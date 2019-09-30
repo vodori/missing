@@ -84,8 +84,8 @@
 
 (deftest sort-by-value-test
   (let [m {1 2 4 5 3 4 0 5}]
-    (is (= [[4 5] [0 5] [3 4] [1 2]] (seq (sort-by-value-descending m))))
-    (is (= [[1 2] [3 4] [0 5] [4 5]] (seq (sort-by-value-ascending m))))))
+    (is (= [[4 5] [0 5] [3 4] [1 2]] (seq (sorted-map-by-value m (flip compare)))))
+    (is (= [[1 2] [3 4] [0 5] [4 5]] (seq (sorted-map-by-value m))))))
 
 (deftest dissoc-in-test
   (let [m {1 {:stuff 3 :thing 2} 2 4}]
