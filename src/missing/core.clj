@@ -368,6 +368,11 @@
                    xs seen)))]
      (step coll #{}))))
 
+(defn distinct-by?
+  "Like distinct? but according to a key-fn instead of the element itself."
+  [f coll]
+  (apply distinct? (map f coll)))
+
 (defn dedupe-by
   "Like dedupe but according to a key-fn instead of the element itself."
   ([f]

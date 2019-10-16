@@ -290,3 +290,8 @@
 
   (testing "Globs against a wildcard extension."
     (is (= #{".clj"} (set (map #(get-extension (.getName %)) (glob-seq (System/getenv "PWD") "*.clj")))))))
+
+(deftest distinct-by?-test
+  (let [xs [{:x 1 :y 1} {:x 2 :y 1} {:x 3 :y 3} {:x 4 :y 4}]]
+    (is (distinct-by? :x xs))
+    (is (not (distinct-by? :y xs)))))
