@@ -17,10 +17,19 @@
   []
   (str (UUID/randomUUID)))
 
+(defn read-edn-string
+  "Reads a string of edn and returns the parsed data. Applies any loaded data
+   readers and falls back to propagating tagged literals when no applicable reader exists."
+  [s]
+  (edn/read-string {:readers *data-readers* :default tagged-literal} s))
+
 (defn load-edn-resource
-  "Load and parse an edn file from the classpath."
+  "Load and parse an edn file from the filesystem if given an absolute path or the classpath otherwise.
+   See read-edn-string for notes on tagged literals."
   [path]
-  (edn/read-string (slurp (io/resource path))))
+  (let [f (if (strings/starts-with? path "/") (io/file path) (io/file (io/resource path)))]
+    (when (and (.exists f) (.canRead f))
+      (read-edn-string (slurp f)))))
 
 (defn filter-keys
   "Filter a map by a predicate on its keys"
