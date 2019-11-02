@@ -23,13 +23,32 @@
   [s]
   (edn/read-string {:readers *data-readers* :default tagged-literal} s))
 
+(defn locate-file
+  "Given a path attempts to find the best matching file.
+     file:      prefix to mandate file system path
+     classpath: prefix to mandate classpath
+     leading slash presumes file system
+     otherwise, check classpath first then filesystem"
+  [path]
+  (when-some
+    [f (and path
+            (cond
+              (strings/starts-with? path "/")
+              (io/file path)
+              (strings/starts-with? path "file:")
+              (some-> path (strings/replace-first "file:" "") io/file)
+              (strings/starts-with? path "classpath:")
+              (some-> path (strings/replace-first "classpath:" "") io/resource io/file)
+              :otherwise
+              (or (locate-file (str "classpath:" path)) (locate-file (str "file:" path)))))]
+    (when (.exists f) f)))
+
 (defn load-edn-resource
   "Load and parse an edn file from the filesystem if given an absolute path or the classpath otherwise.
    See read-edn-string for notes on tagged literals."
   [path]
-  (let [f (if (strings/starts-with? path "/") (io/file path) (io/file (io/resource path)))]
-    (when (and (.exists f) (.canRead f))
-      (read-edn-string (slurp f)))))
+  (when-some [f (locate-file path)]
+    (when (.canRead f) (read-edn-string (slurp f)))))
 
 (defn filter-keys
   "Filter a map by a predicate on its keys"
@@ -95,10 +114,64 @@
   [m]
   (into {} (map (comp vec reverse)) m))
 
-(defn invert-grouping
+(defn grouping->pairs
+  "Turn a map of groupings into a flat sequence of pairs of key and single value."
+  [m]
+  (mapcat #(map vector (repeat (key %)) (val %)) m))
+
+(defn reverse-grouping
   "Take a map of categories to items and turn it into a map of item to category."
   [m]
-  (->> m (mapcat #(map vector (val %) (repeat (key %)))) (into {})))
+  (reduce (fn [m' [k v]] (assoc m' v k)) {} (grouping->pairs m)))
+
+(defn pivot-grouping
+  "Take a map of categories to items and turn it into a map if items to categories."
+  [m]
+  (reduce (fn [m' [k v]] (update m' v (fnil conj []) k)) {} (grouping->pairs m)))
+
+(defmacro if-text
+  "bindings => binding-form test
+
+   If test is a string and contains text, evaluates then with binding-form bound to the
+   value of test, if not, yields else"
+  ([bindings then]
+   `(if-text ~bindings ~then nil))
+  ([bindings then else & oldform]
+   (#'clojure.core/assert-args
+     (vector? bindings) "a vector for its binding"
+     (nil? oldform) "1 or 2 forms after binding vector"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+   (let [form (bindings 0) tst (bindings 1)]
+     `(let [temp# ~tst]
+        (if (or (not (string? temp#)) (strings/blank? temp#))
+          ~else
+          (let [~form temp#]
+            ~then))))))
+
+(defmacro when-text [bindings then]
+  `(if-text ~bindings ~then))
+
+(defmacro if-seq
+  "bindings => binding-form test
+
+   If (seq test) is non-nil evaluates then with binding-form bound to the
+   value of test, if not, yields else"
+  ([bindings then]
+   `(if-seq ~bindings ~then nil))
+  ([bindings then else & oldform]
+   (#'clojure.core/assert-args
+     (vector? bindings) "a vector for its binding"
+     (nil? oldform) "1 or 2 forms after binding vector"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+   (let [form (bindings 0) tst (bindings 1)]
+     `(let [temp# ~tst]
+        (if (empty? temp#)
+          ~else
+          (let [~form temp#]
+            ~then))))))
+
+(defmacro when-seq [bindings then]
+  `(if-seq ~bindings ~then))
 
 (defn not-empty? [coll]
   ((complement empty?) coll))
@@ -171,12 +244,18 @@
           naked (rstrip (reduce join "" segments) "/")]
       (if (and s1 (strings/starts-with? s1 "/")) (str "/" naked) naked))))
 
+(defn left-pad
+  "Pad a string on the left until it satisfies a desired width."
+  [s length pad]
+  (let [pad-length (max 0 (- length (count (str s))))]
+    (reduce (fn [ss s] (str s ss)) s (repeat pad-length pad))))
+
 (defn index-by
   "Index the items of a collection into a map by a key"
   [key-fn coll]
   (into {} (map (juxt key-fn identity)) coll))
 
-(def ^:dynamic *preempt* nil)
+(def ^:dynamic *preempt*)
 
 (defn preempt
   "To be used inside of a preemptable. Call preempt within a preemptable
@@ -675,19 +754,21 @@
   the range of the produced function has zero duplicates. When these
   names are filenames the number is appended conveniently before the extension."
   []
-  (let [seen-names (atom #{})
+  (let [seen-names
+        (volatile! #{})
         get-modified
-                   (fn [name]
-                     (let [extension (or (get-extension name) "")
-                           filename  (get-filename name)]
-                       (->> (range)
-                            (map #(str filename "(" (inc %) ")" extension))
-                            (filter #(not (contains? @seen-names %)))
-                            (first))))]
+        (fn [name]
+          (let [extension (or (get-extension name) "")
+                filename  (get-filename name)
+                seen      @seen-names]
+            (->> (range)
+                 (map #(str filename "(" (inc %) ")" extension))
+                 (filter #(not (contains? seen %)))
+                 (first))))]
     (fn [name]
       (if (contains? @seen-names name)
         (recur (get-modified name))
-        (do (swap! seen-names conj name)
+        (do (vswap! seen-names conj name)
             name)))))
 
 (defn subsets
