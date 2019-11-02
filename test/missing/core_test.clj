@@ -190,7 +190,7 @@
 
 (deftest invert-grouping-test
   (let [m        (group-by even? (range 10))
-        inverted (invert-grouping m)]
+        inverted (reverse-grouping m)]
     (dotimes [x 10]
       (is (= (even? x) (get inverted x))))))
 
