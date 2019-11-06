@@ -459,7 +459,7 @@
 (defn distinct-by?
   "Like distinct? but according to a key-fn instead of the element itself."
   [f coll]
-  (apply distinct? (map f coll)))
+  (or (empty? coll) (apply distinct? (map f coll))))
 
 (defn dedupe-by
   "Like dedupe but according to a key-fn instead of the element itself."
@@ -864,3 +864,6 @@
   "Like defmethod but allows for specifying implementations of multiple dispatch keys at once."
   [symbol dispatch-keys & body]
   `(doseq [dispatch# ~dispatch-keys] (defmethod ~symbol dispatch# ~@body)))
+
+(defmacro once [& body]
+  `(var-get (defonce ~(symbol (Long/toHexString (+ (hash (meta &form)) (hash &form)))) ~@body)))
