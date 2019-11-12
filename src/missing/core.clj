@@ -855,6 +855,29 @@
   [m structure]
   ((structural-extractor structure) m))
 
+(defn =ic
+  "Like = but ignores casing."
+  ([_] true)
+  ([s1 s2]
+   (= (strings/lower-case s1)
+      (strings/lower-case s2)))
+  ([s1 s2 & ss]
+   (if (=ic s1 s2)
+     (if (next ss)
+       (recur s2 (first ss) (rest ss))
+       (=ic s2 (first ss)))
+     false)))
+
+(defn =select
+  "Like clojure.core/= but checks equality at only the positions referred to by expected."
+  [expected actual]
+  (loop [[[value path] & remaining :as paths] (paths/path-seq expected)]
+    (if (empty? paths)
+      true
+      (if (= value (get-in actual path))
+        (recur remaining)
+        false))))
+
 (defmacro defonce-protocol
   "Like defprotocol but won't reload the protocol when you reload the ns."
   [sym & body]
@@ -864,6 +887,3 @@
   "Like defmethod but allows for specifying implementations of multiple dispatch keys at once."
   [symbol dispatch-keys & body]
   `(doseq [dispatch# ~dispatch-keys] (defmethod ~symbol dispatch# ~@body)))
-
-(defmacro once [& body]
-  `(var-get (defonce ~(symbol (Long/toHexString (+ (hash (meta &form)) (hash &form)))) ~@body)))

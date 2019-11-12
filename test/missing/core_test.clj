@@ -293,5 +293,17 @@
 
 (deftest distinct-by?-test
   (let [xs [{:x 1 :y 1} {:x 2 :y 1} {:x 3 :y 3} {:x 4 :y 4}]]
+    (is (distinct-by? identity []))
     (is (distinct-by? :x xs))
     (is (not (distinct-by? :y xs)))))
+
+(deftest =ic-test
+  (is (=ic "test" "TEST" "tesT"))
+  (is (not (=ic "test" "TEST" "tset")))
+  (is (=ic "test"))
+  (is (not (=ic "test" "tset")))
+  (is (=ic "test" "test")))
+
+(deftest =select--test
+  (is (=select {:a "stuff" :b "things"} {:a "stuff" :b "things" :c "other-things"}))
+  (is (not (=select {:a "stuff" :b "things"} {:a "stuff" :b "thoughts" :c "other-things"}))))
