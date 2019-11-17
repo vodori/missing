@@ -4,7 +4,8 @@
             [clojure.set :as sets]
             [clojure.edn :as edn]
             [missing.paths :as paths]
-            [clojure.walk :as walk])
+            [clojure.walk :as walk]
+            [clojure.data :as data])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
            (java.time Duration)
@@ -125,7 +126,7 @@
   (reduce (fn [m' [k v]] (assoc m' v k)) {} (grouping->pairs m)))
 
 (defn pivot-grouping
-  "Take a map of categories to items and turn it into a map if items to categories."
+  "Take a map of categories to items and turn it into a map of items to categories."
   [m]
   (reduce (fn [m' [k v]] (update m' v (fnil conj []) k)) {} (grouping->pairs m)))
 
@@ -374,6 +375,37 @@
       (intersect? set1 set2) false
       (empty? ss) true
       :otherwise (recur (sets/union set1 set2) (first ss) (rest ss)))))
+
+(defmacro default
+  "Wrap f to return a default value if f returns nil."
+  [f default]
+  `(let [f# ~f default# (delay ~default)]
+     (fn [& args#] (or (apply f# args#) (force default#)))))
+
+(defn concatv
+  "Returns the concatenation as a vector."
+  [& xs]
+  (vec (apply concat xs)))
+
+(defn keyset
+  "Returns the keys of a map as a set."
+  [m]
+  (set (keys m)))
+
+(defn diff-by
+  "Like clojure.data/diff when used on sets except keyed by
+   key-fn instead of the elements themselves."
+  [key-fn a b]
+  (let [indexed-a (group-by key-fn a)
+        indexed-b (group-by key-fn b)
+        a-keys    (keyset indexed-a)
+        b-keys    (keyset indexed-b)
+        mapcats   (comp set mapcat)
+        [a-only b-only both] (data/diff a-keys b-keys)]
+    [(mapcats (default indexed-a []) a-only)
+     (mapcats (default indexed-b []) b-only)
+     (sets/union (mapcats (default indexed-a []) both)
+                 (mapcats (default indexed-b []) both))]))
 
 (defn deep-merge
   "Merges nested maps."
