@@ -4,7 +4,6 @@
             [clojure.set :as sets]
             [clojure.edn :as edn]
             [missing.paths :as paths]
-            [clojure.walk :as walk]
             [clojure.data :as data])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
@@ -282,25 +281,19 @@
          (let [stone# @*preempt*]
            (if (= stone# ::none) (throw e#) stone#))))))
 
-(defn dfs-preorder
-  "Depth first search (preorder) through a form for the first form that matches pred."
-  [pred form]
-  (preemptable (walk/prewalk #(if (pred %) (preempt %) %) form) nil))
-
-(defn dfs-postorder
-  "Depth first search (postorder) through a form for the first form that matches pred."
-  [pred form]
-  (preemptable (walk/postwalk #(if (pred %) (preempt %) %) form) nil))
-
 (defn walk-seq
-  "Returns a vector of all forms within form."
+  "Returns a lazy sequence of all forms within a data structure."
   [form]
-  (let [shapes (volatile! [])]
-    (walk/postwalk
-      (fn [inner-form]
-        (vswap! shapes conj inner-form)
-        inner-form) form)
-    (deref shapes)))
+  (letfn [(branch? [form]
+            (cond
+              (map? form) true
+              (map-entry? form) true
+              (string? form) false
+              (seqable? form) true
+              :otherwise false))
+          (children [form]
+            (seq form))]
+    (tree-seq branch? children form)))
 
 (defn paging
   "A function that returns a lazily generating sequence
@@ -313,7 +306,7 @@
 
     :offset A number representing what index to start getting results from. Defaults to 0.
   "
-  ([f] (paging 256 f))
+  ([f] (paging 512 f))
   ([limit f] (paging 0 limit f))
   ([offset limit f]
    (let [last-page-size (volatile! 0)]
@@ -432,6 +425,11 @@
   "Find the first element in the collection that matches the pred"
   [pred coll]
   (first (drop-while (complement pred) coll)))
+
+(defn dfs
+  "Depth first search through a form for the first form that matches pred."
+  [pred form]
+  (find-first pred (walk-seq form)))
 
 (defn find-indexed
   "Returns [index item] for the first item that matches pred."

@@ -1,6 +1,7 @@
 (ns missing.core-test
   (:require [clojure.test :refer :all]
-            [missing.core :refer :all])
+            [missing.core :refer :all]
+            [clojure.set :as sets])
   (:import (java.time Duration)))
 
 
@@ -307,3 +308,19 @@
 (deftest =select--test
   (is (=select {:a "stuff" :b "things"} {:a "stuff" :b "things" :c "other-things"}))
   (is (not (=select {:a "stuff" :b "things"} {:a "stuff" :b "thoughts" :c "other-things"}))))
+
+(deftest diff-by-test
+  (let [a [{:x 1 :v 1} {:x 1 :v 11} {:x 2 :v 2} {:x 3 :v 3}]
+        b [{:x 2 :v 2} {:x 3 :v 3} {:x 4 :v 4}]
+        [only-a only-b both] (diff-by :x a b)]
+    (is (sets/subset? (set only-a) (set a)))
+    (is (not (intersect? (set only-a) (set b))))
+    (is (sets/subset? (set only-b) (set b)))
+    (is (not (intersect? (set only-b) (set a))))
+    (is (sets/subset? (set both) (set a)))
+    (is (sets/subset? (set both) (set b)))))
+
+(deftest default-test
+  (let [m  {:a 1 :b 2}
+        m' (default m 3)]
+    (is (= 3 (m' :c)))))
