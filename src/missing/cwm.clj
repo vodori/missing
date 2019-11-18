@@ -13,8 +13,6 @@
        (symbol? (first form))
        (or (contains? #{'let* 'loop* 'letfn*} (first form)))))
 
-(declare walk)
-
 (defn walk-seq [form]
   (letfn [(branch? [form]
             (cond
