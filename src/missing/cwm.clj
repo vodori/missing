@@ -43,16 +43,15 @@
       (let [[prefix args impl] form]
         (list prefix (expand args impl)))
       :otherwise
-      (println form))))
+      (throw (ex-info "Unknown function form." {:form form})))))
 
 (defn walk-binding [context f [binding-symbol bindings & body]]
   (let [{:keys [bindings context]}
         (reduce
           (fn [{:keys [context] :as agg} [symbol v]]
-            (let [ctx (update context :locals conj symbol)]
-              (-> agg
-                  (assoc :context ctx)
-                  (update :bindings conj symbol (f ctx v)))))
+            (-> agg
+                (update :bindings conj symbol (f context v))
+                (update-in [:context :locals] conj symbol)))
           {:bindings [] :context context}
           (partition 2 (destructure bindings)))]
     (apply list binding-symbol bindings
@@ -83,7 +82,7 @@
   ([context f form]
    (walk-form context f (walk/macroexpand-all form))))
 
-(defn replace-binding-values [replacements form]
+(defn replace-symbols-unless-shadowed [replacements form]
   (walk
     (fn [{:keys [locals]} form]
       (let [replaceable (sets/difference (set (keys replacements)) locals)]

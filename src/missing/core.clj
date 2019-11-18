@@ -913,11 +913,11 @@
 (defmacro letd
   "Like clojure.core/let except delays and forces each binding value. Use
    this when you don't want to evaluate potentially expensive bindings
-   unless you use their value in the body of the code. Supports nesting,
-   dependencies between bindings, destructuring, and closures."
+   until you refer to their value in the body of the code. Supports nesting,
+   dependencies between bindings, shadowing, destructuring, and closures."
   [bindings & body]
   (letfn [(reduction [{:keys [replacements] :as agg} [symbol value]]
-            (let [new-form (cwm/replace-binding-values replacements value)]
+            (let [new-form (cwm/replace-symbols-unless-shadowed replacements value)]
               (-> agg
                   (update :bindings conj [symbol (list `delay new-form)])
                   (update :replacements assoc symbol (list `force symbol)))))]
@@ -926,4 +926,4 @@
                   {:bindings [] :replacements {}}
                   (partition 2 (destructure bindings)))]
       `(let* ~(vec (mapcat identity bindings))
-         ~@(cwm/replace-binding-values replacements body)))))
+         ~@(cwm/replace-symbols-unless-shadowed replacements body)))))

@@ -1,10 +1,22 @@
 (ns missing.core-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer :all :exclude (testing)]
             [missing.core :refer :all]
             [clojure.set :as sets])
   (:import (java.time Duration)))
 
+(def invokes (atom []))
+(def capture (fn [x] (swap! invokes conj x) x))
+(def clear! (fn [] (reset! invokes [])))
 
+(use-fixtures :each
+  (fn [tests]
+    (clear!)
+    (tests)
+    (clear!)))
+
+(defmacro testing [description & body]
+  `(clojure.test/testing ~description
+     (do (clear!) ~@body (clear!))))
 
 (deftest filter-keys-test
   (let [m {1 2 3 4 6 5 8 7}]
@@ -324,3 +336,90 @@
   (let [m  {:a 1 :b 2}
         m' (default m 3)]
     (is (= 3 (m' :c)))))
+
+
+(deftest letd-test
+  (testing "unusued bindings are never evaluated."
+    (letd [a (capture 1)
+           b (capture (+ a 1))]
+      (is (empty? @invokes))))
+  (testing "usage of early bindings doesn't force later bindings"
+    (letd [a (capture 1)
+           b (capture (+ a 1))]
+      (is (= 1 a))
+      (is (= [1] @invokes))))
+  (testing "referencing bindings multiple times only evaluates once"
+    (letd [a (capture 1)
+           b (capture (+ a 1))]
+      (is (= 2 b))
+      (is (= 2 b))
+      (is (= [1 2] @invokes))))
+  (testing "bindings can be evaluated in any order."
+    (letd [x (capture 10)
+           {:keys [a b]} (capture {:a 1 :b 2})
+           c (capture (+ a b))
+           d (capture (+ a b x))]
+      (is (empty? @invokes))
+      (is (= x 10))
+      (is (= [10] @invokes))
+      (is (= 13 d))
+      (is (= [10 {:a 1 :b 2} 13] @invokes))
+      (is (= 3 c))
+      (is (= [10 {:a 1 :b 2} 13 3] @invokes))))
+  (testing "bindings can be nested"
+    (letd [y (capture (letd [x (capture 1)
+                             y (capture (+ x x x))]
+                        y))]
+      (is (empty? @invokes))
+      (is (= y 3))
+      (is (= [1 3 3] @invokes))))
+  (testing "bindings aren't evaluated if fully shadowed."
+    (let [f (fn [x]
+              (letd [{:keys [a b c]} (capture {:a 1 :b 2 :c 3})]
+                (let [{:keys [a b]} {:a 3 :b 4}]
+                  (if (odd? x)
+                    (+ a b)
+                    (+ a b c)))))
+          v (f 3)]
+      (is (empty? @invokes))
+      (is (= v 7))
+      (is (empty? @invokes))
+      (let [v2 (f 4)]
+        (is (= [{:a 1 :b 2 :c 3}] @invokes))
+        (is (= v2 10)))))
+  (testing "bindings aren't evaluated if shadowed fn"
+    (let [f (letd [x (capture 1)]
+              (fn [x] (+ x x)))]
+      (is (empty? @invokes))
+      (is (= 8 (f 4)))
+      (is (empty? @invokes))))
+  (testing "supports linear deps"
+    (letd [a 1 b (+ a 1)]
+      (is (= b 2))))
+  (testing "supports shadowing by self"
+    (letd [a 1]
+      (is (= a 1))
+      (letd [a 2]
+        (is (= a 2)))
+      (is (= a 1))))
+  (testing "supports shadowing by let"
+    (letd [a 1]
+      (is (= a 1))
+      (let [a 2]
+        (is (= a 2)))
+      (is (= a 1))))
+  (testing "supports shadowing by loop"
+    (letd [a 1]
+      (is (= a 1))
+      (is (= 2 (loop [a 2]
+                 a)))
+      (is (= a 1))))
+  (testing "supports shadowing by fn"
+    (letd [a 1]
+      (is (= a 1))
+      (is (= 2 ((fn [a] a) 2)))
+      (is (= a 1))))
+  (testing "supports destructuring"
+    (letd [{:keys [a b]} {:a 1 :b 2}]
+      (is (= a 1))
+      (is (= b 2)))))
