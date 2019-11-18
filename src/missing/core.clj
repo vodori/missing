@@ -4,7 +4,8 @@
             [clojure.set :as sets]
             [clojure.edn :as edn]
             [missing.paths :as paths]
-            [clojure.data :as data])
+            [clojure.data :as data]
+            [missing.cwm :as cwm])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
            (java.time Duration)
@@ -284,16 +285,7 @@
 (defn walk-seq
   "Returns a lazy sequence of all forms within a data structure."
   [form]
-  (letfn [(branch? [form]
-            (cond
-              (map? form) true
-              (map-entry? form) true
-              (string? form) false
-              (seqable? form) true
-              :otherwise false))
-          (children [form]
-            (seq form))]
-    (tree-seq branch? children form)))
+  (cwm/walk-seq form))
 
 (defn paging
   "A function that returns a lazily generating sequence
@@ -302,7 +294,7 @@
 
     :f A function of two arguments (offset and limit) that fetches some kind of results.
 
-    :limit A number representing how many objects to fetch per page. Defaults to 256.
+    :limit A number representing how many objects to fetch per page. Defaults to 512.
 
     :offset A number representing what index to start getting results from. Defaults to 0.
   "
@@ -889,8 +881,8 @@
   "Like = but ignores casing."
   ([_] true)
   ([s1 s2]
-   (= (strings/lower-case s1)
-      (strings/lower-case s2)))
+   (= (when s1 (strings/lower-case s1))
+      (when s2 (strings/lower-case s2))))
   ([s1 s2 & ss]
    (if (=ic s1 s2)
      (if (next ss)
@@ -917,3 +909,21 @@
   "Like defmethod but allows for specifying implementations of multiple dispatch keys at once."
   [symbol dispatch-keys & body]
   `(doseq [dispatch# ~dispatch-keys] (defmethod ~symbol dispatch# ~@body)))
+
+(defmacro letd
+  "Like clojure.core/let except delays and forces each binding value. Use
+   this when you don't want to evaluate potentially expensive bindings
+   unless you use their value in the body of the code. Supports nesting,
+   dependencies between bindings, destructuring, and closures."
+  [bindings & body]
+  (letfn [(reduction [{:keys [replacements] :as agg} [symbol value]]
+            (let [new-form (cwm/replace-binding-values replacements value)]
+              (-> agg
+                  (update :bindings conj [symbol (list `delay new-form)])
+                  (update :replacements assoc symbol (list `force symbol)))))]
+    (let [{:keys [bindings replacements]}
+          (reduce reduction
+                  {:bindings [] :replacements {}}
+                  (partition 2 (destructure bindings)))]
+      `(let* ~(vec (mapcat identity bindings))
+         ~@(cwm/replace-binding-values replacements body)))))
