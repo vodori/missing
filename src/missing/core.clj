@@ -282,6 +282,63 @@
          (let [stone# @*preempt*]
            (if (= stone# ::none) (throw e#) stone#))))))
 
+(defmacro letp
+  "Like clojure.core/let but allows early returns via (preempt return-value)"
+  [bindings & body]
+  `(preemptable (let ~bindings ~@body)))
+
+(defn map-groups
+  "Map items in groups for the groups in a map of category to group."
+  [f m]
+  (map-vals (partial mapv f) m))
+
+(defn filter-groups
+  "Filter items in groups for the groups in a map of category to group."
+  [f m]
+  (map-vals (partial filterv f) m))
+
+(defn remove-groups
+  "Remove items from groups in a map of category to group."
+  [f m]
+  (filter-groups (complement f) m))
+
+(defn reduce-groups
+  "Reduce items in groups for the groups in a map of category to group."
+  ([f m]
+   (map-vals (partial reduce f) m))
+  ([f val m]
+   (map-vals (partial reduce f val) m)))
+
+(defn iterable?
+  "Is collection like or a single value?"
+  [x]
+  (and (not (string? x))
+       (not (map? x))
+       (seqable? x)))
+
+(defn n?
+  "Are there exactly n things in coll that satisfy pred?"
+  [n pred coll]
+  (letfn [(reduction [agg next]
+            (let [agg' (if (pred next) (inc agg) agg)]
+              (if (< n agg') (reduced agg') agg')))]
+    (= n (reduce reduction 0 coll))))
+
+(defn one?
+  "Is there exactly one thing in coll that satisfies pred?"
+  [pred coll]
+  (n? 1 pred coll))
+
+(defn lasts-by
+  "Filter a sequence to only the last elements of each partition determined by key-fn."
+  [key-fn coll]
+  (map last (partition-by key-fn coll)))
+
+(defn firsts-by
+  "Filter a sequence to only the first elements of each partition determined by key-fn."
+  [key-fn coll]
+  (map first (partition-by key-fn coll)))
+
 (defn walk-seq
   "Returns a lazy sequence of all forms within a data structure."
   [form]
@@ -523,6 +580,7 @@
 
 (defn lt
   "Like < but for comparables."
+  ([] true)
   ([_] true)
   ([a b] (neg? (compare a b)))
   ([a b & more]
@@ -534,6 +592,7 @@
 
 (defn lte
   "Like <= but for comparables."
+  ([] true)
   ([_] true)
   ([a b] (not (pos? (compare a b))))
   ([a b & more]
@@ -545,6 +604,7 @@
 
 (defn gt
   "Like > but for comparables."
+  ([] true)
   ([_] true)
   ([a b] (pos? (compare a b)))
   ([a b & more]
@@ -556,6 +616,7 @@
 
 (defn gte
   "Like >= but for comparables."
+  ([] true)
   ([_] true)
   ([a b] (not (neg? (compare a b))))
   ([a b & more]
