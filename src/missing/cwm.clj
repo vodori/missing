@@ -80,7 +80,7 @@
   ([context f form]
    (walk-form context f (walk/macroexpand-all form))))
 
-(defn replace-symbols-unless-shadowed [replacements form]
+(defn replace-symbols-except-where-shadowed [replacements form]
   (walk
     (fn [{:keys [locals]} form]
       (let [replaceable (sets/difference (set (keys replacements)) locals)]

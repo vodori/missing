@@ -317,9 +317,11 @@
   (is (not (=ic "test" "tset")))
   (is (=ic "test" "test")))
 
-(deftest =select--test
+(deftest =select-test
   (is (=select {:a "stuff" :b "things"} {:a "stuff" :b "things" :c "other-things"}))
-  (is (not (=select {:a "stuff" :b "things"} {:a "stuff" :b "thoughts" :c "other-things"}))))
+  (is (not (=select {:a "stuff" :b "things"} {:a "stuff" :b "thoughts" :c "other-things"})))
+  (is (=select {:a odd? :b even?} {:a 1 :b 2 :c "other-things"}))
+  (is (not (=select {:a odd? :b even?} {:a 2 :b 1 :c "other-things"}))))
 
 (deftest diff-by-test
   (let [a [{:x 1 :v 1} {:x 1 :v 11} {:x 2 :v 2} {:x 3 :v 3}]
@@ -423,3 +425,53 @@
     (letd [{:keys [a b]} {:a 1 :b 2}]
       (is (= a 1))
       (is (= b 2)))))
+
+(deftest letp-test
+  (let [v (letp [a (+ 1 2 3)
+                 b (if (even? a) (preempt 4) 5)
+                 c (capture b)]
+            c)]
+    (is (= v 4))
+    (is (empty? @invokes))))
+
+(deftest zip-test
+  (is (= [1 2 3] (into [] (zip) [1 2 3])))
+  (is (= [] (zip [])))
+  (is (= [] (zip [] [])))
+  (is (= [] (zip [] [1])))
+  (is (= [[1 3] [2 4]] (zip [1 2] [3 4])))
+  (is (= [[1 3 5] [2 4 6]] (zip [1 2] [3 4] [5 6]))))
+
+(deftest map-groups-test
+  (is (= {:a []} (map-groups inc {:a []})))
+  (is (= {:a [1 2 3] :b [4 5 6]} (map-groups inc {:a [0 1 2] :b [3 4 5]}))))
+
+(deftest mapcat-groups-test
+  (is (= {:a []} (mapcat-groups #(vector % %) {:a []})))
+  (is (= {:a [1 1 2 2] :b [3 3]} (mapcat-groups #(repeat % 2) {:a [1 2] :b [3]}))))
+
+(deftest filter-groups-test
+  (is (= {:a []} (filter-groups odd? {:a []})))
+  (is (= {:a [1 3] :b []} (filter-groups odd? {:a [1 2 3] :b [4]}))))
+
+(deftest remove-groups-test
+  (is (= {:a []} (remove-groups inc {:a []})))
+  (is (= {:a [2] :b [4]} (remove-groups odd? {:a [1 2 3] :b [4]}))))
+
+(deftest reduce-groups-test
+  (is (= {:a 0 :b 0} (reduce-groups + {:a [] :b []})))
+  (is (= {:a 6 :b 15} (reduce-groups + {:a [1 2 3] :b [4 5 6]}))))
+
+(deftest iterable?-test
+  (is (iterable? [1 2 3]))
+  (is (iterable? '(1 2 3)))
+  (is (iterable? #{1 2 3}))
+  (is (iterable? (take 1 [1 2])))
+  (is (iterable? (keys {:a :b :c :d})))
+  (is (iterable? (vals {:a :b :c :d})))
+  (is (not (iterable? "test")))
+  (is (not (iterable? {:a [1 2 3]}))))
+
+(deftest one?-test
+  (is (one? even? [1 2 3]))
+  (is (not (one? odd? [1 2 3]))))

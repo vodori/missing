@@ -282,6 +282,11 @@
          (let [stone# @*preempt*]
            (if (= stone# ::none) (throw e#) stone#))))))
 
+(defn zip
+  "Create tuples from sequences."
+  [& colls]
+  (apply map vector colls))
+
 (defmacro letp
   "Like clojure.core/let but allows early returns via (preempt return-value)"
   [bindings & body]
@@ -291,6 +296,11 @@
   "Map items in groups for the groups in a map of category to group."
   [f m]
   (map-vals (partial mapv f) m))
+
+(defn mapcat-groups
+  "Mapcat items in groups for the groups in a map of category to group."
+  [f m]
+  (map-vals (comp vec (partial mapcat f)) m))
 
 (defn filter-groups
   "Filter items in groups for the groups in a map of category to group."
@@ -952,13 +962,19 @@
      false)))
 
 (defn =select
-  "Like clojure.core/= but checks equality at only the positions referred to by expected."
+  "Checks equality at only the positions referred to by expected. If
+   a leaf of expected is a predicate, then that predicate will be called
+   with the value found in actual, otherwise equality will be used."
   [expected actual]
   (loop [[[value path] & remaining :as paths] (paths/path-seq expected)]
     (if (empty? paths)
       true
-      (if (= value (get-in actual path))
+      (cond
+        (and (fn? value) (value (get-in actual path)))
         (recur remaining)
+        (= value (get-in actual path))
+        (recur remaining)
+        :otherwise
         false))))
 
 (defmacro defonce-protocol
@@ -977,8 +993,11 @@
    until you refer to their value in the body of the code. Supports nesting,
    dependencies between bindings, shadowing, destructuring, and closures."
   [bindings & body]
+  (#'clojure.core/assert-args
+    (vector? bindings) "a vector for its binding"
+    (even? (count bindings)) "an even number of forms in binding vector")
   (letfn [(reduction [{:keys [replacements] :as agg} [symbol value]]
-            (let [new-form (cwm/replace-symbols-unless-shadowed replacements value)]
+            (let [new-form (cwm/replace-symbols-except-where-shadowed replacements value)]
               (-> agg
                   (update :bindings conj [symbol (list `delay new-form)])
                   (update :replacements assoc symbol (list `force symbol)))))]
@@ -987,4 +1006,4 @@
                   {:bindings [] :replacements {}}
                   (partition 2 (destructure bindings)))]
       `(let* ~(vec (mapcat identity bindings))
-         ~@(cwm/replace-symbols-unless-shadowed replacements body)))))
+         ~@(cwm/replace-symbols-except-where-shadowed replacements body)))))
