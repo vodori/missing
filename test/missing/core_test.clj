@@ -435,7 +435,7 @@
     (is (empty? @invokes))))
 
 (deftest zip-test
-  (is (= [1 2 3] (into [] (zip) [1 2 3])))
+  (is (= [[1] [2] [3]] (into [] (zip) [1 2 3])))
   (is (= [] (zip [])))
   (is (= [] (zip [] [])))
   (is (= [] (zip [] [1])))
@@ -448,7 +448,7 @@
 
 (deftest mapcat-groups-test
   (is (= {:a []} (mapcat-groups #(vector % %) {:a []})))
-  (is (= {:a [1 1 2 2] :b [3 3]} (mapcat-groups #(repeat % 2) {:a [1 2] :b [3]}))))
+  (is (= {:a [1 1 2 2] :b [3 3]} (mapcat-groups #(repeat 2 %) {:a [1 2] :b [3]}))))
 
 (deftest filter-groups-test
   (is (= {:a []} (filter-groups odd? {:a []})))
