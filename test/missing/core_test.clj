@@ -324,15 +324,15 @@
   (is (not (=select {:a odd? :b even?} {:a 2 :b 1 :c "other-things"}))))
 
 (deftest diff-by-test
-  (let [a [{:x 1 :v 1} {:x 1 :v 11} {:x 2 :v 2} {:x 3 :v 3}]
-        b [{:x 2 :v 2} {:x 3 :v 3} {:x 4 :v 4}]
+  (let [a #{{:x 1 :v 1} {:x 1 :v 11} {:x 2 :v 2} {:x 3 :v 3}}
+        b #{{:x 2 :v 2} {:x 3 :v 3} {:x 4 :v 4}}
         [only-a only-b both] (diff-by :x a b)]
-    (is (sets/subset? (set only-a) (set a)))
-    (is (not (intersect? (set only-a) (set b))))
-    (is (sets/subset? (set only-b) (set b)))
-    (is (not (intersect? (set only-b) (set a))))
-    (is (sets/subset? (set both) (set a)))
-    (is (sets/subset? (set both) (set b)))))
+    (is (sets/subset? only-a a))
+    (is (not (intersect? only-a b)))
+    (is (sets/subset? only-b b))
+    (is (not (intersect? only-b a)))
+    (is (sets/subset? both a))
+    (is (sets/subset? both b))))
 
 (deftest default-test
   (let [m  {:a 1 :b 2}
@@ -475,3 +475,9 @@
 (deftest one?-test
   (is (one? even? [1 2 3]))
   (is (not (one? odd? [1 2 3]))))
+
+(deftest extrema-test
+  (is (= [nil nil] (extrema [])))
+  (is (= [Double/MAX_VALUE Double/MAX_VALUE] (extrema [Double/MAX_VALUE])))
+  (is (= [-3 6] (extrema [-1 -2 -3 6 5 4])))
+  (is (= [[1 -2] [50 9]] (extrema [[1 2] [1 -2] [50 -9] [50 9] [50 8]]))))

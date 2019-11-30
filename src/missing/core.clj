@@ -5,6 +5,7 @@
             [clojure.edn :as edn]
             [missing.paths :as paths]
             [clojure.data :as data]
+            [clojure.pprint :as pprint]
             [missing.cwm :as cwm])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
@@ -469,6 +470,12 @@
                 (last maps))))]
     (apply inner-merge maps)))
 
+(defn pp
+  "Prints the argument and returns it."
+  [x]
+  (pprint/pprint x)
+  x)
+
 (defn key=
   "Equality after conversion to keywords. Use when you're unsure if the
   arguments are strings or keywords"
@@ -654,6 +661,21 @@
             ([a b] (if (gt (f a) (f b)) a b)))]
     (reduce inner-greatest coll)))
 
+(defn extrema-by
+  "Returns a tuple of [smallest largest] in coll according to some fn of an element."
+  [f coll]
+  (letfn [(reduction
+            ([] [[nil nil] [nil nil]])
+            ([x] x)
+            ([[[_ min-v :as min']
+               [_ max-v :as max']]
+              [[_ v :as x'] _]]
+             [(if (lt v min-v) x' min')
+              (if (gt v max-v) x' max')]))
+          (mapper [x]
+            (let [v [x (f x)]] [v v]))]
+    (mapv first (reduce reduction (map mapper coll)))))
+
 (defn least
   "Returns the smallest element in the collection."
   [coll]
@@ -663,6 +685,11 @@
   "Returns the largest element in the collection."
   [coll]
   (greatest-by identity coll))
+
+(defn extrema
+  "Returns a tuple of [smallest largest] element in the collection."
+  [coll]
+  (extrema-by identity coll))
 
 (defn merge-sort
   "Lazily merges sequences that are already sorted in the same order."
