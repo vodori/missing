@@ -23,7 +23,7 @@
      (let [~@(->> bindings
                   (miss/walk-seq)
                   (filter symbol?)
-                  (filter #(re-find #"^(g)|(g\d+)$" (name %)))
+                  (filter #(re-find #"^g\d*$" (name %)))
                   (mapcat (fn [k] [k `(normalize ~k)])))]
        ~@body)))
 
@@ -170,15 +170,15 @@
 
 (defgn exclusive?
   "Returns whether the graphs don't overlap."
-  [g1 g2]
+  [g1 g2] (defgn supergraph?
+            "Is g1 a supergraph of g2?"
+            [g1 g2]
+            (and
+              (sets/superset? (nodes g1) (nodes g2))
+              (sets/superset? (edges g1) (edges g2))))
   (miss/exclusive? (nodes g1) (nodes g2)))
 
-(defgn supergraph?
-  "Is g1 a supergraph of g2?"
-  [g1 g2]
-  (and
-    (sets/superset? (nodes g1) (nodes g2))
-    (sets/superset? (edges g1) (edges g2))))
+
 
 (defgn subgraph?
   "Is g1 a subgraph of g2?"
