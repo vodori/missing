@@ -12,18 +12,17 @@
            (java.time Duration)
            (java.util.regex Pattern)
            (java.nio.file FileSystems)
-           (java.io File)))
+           (java.io File)
+           (java.security MessageDigest)))
 
 (defn uuid
   "Get a uuid as string"
-  []
-  (str (UUID/randomUUID)))
+  [] (str (UUID/randomUUID)))
 
 (defn read-edn-string
   "Reads a string of edn and returns the parsed data. Applies any loaded data
    readers and falls back to propagating tagged literals when no applicable reader exists."
-  [s]
-  (edn/read-string {:readers *data-readers* :default tagged-literal} s))
+  [s] (edn/read-string {:readers *data-readers* :default tagged-literal} s))
 
 (defn locate-file
   "Given a path attempts to find the best matching file.
@@ -70,13 +69,11 @@
 
 (defn remove-keys
   "Filter a map by the complement of predicate on its keys"
-  [pred m]
-  (filter-keys (complement pred) m))
+  [pred m] (filter-keys (complement pred) m))
 
 (defn remove-vals
   "Filter a map by the complement of predicate on its values"
-  [pred m]
-  (filter-vals (complement pred) m))
+  [pred m] (filter-vals (complement pred) m))
 
 (defn map-keys
   "Transform the keys of a map"
@@ -98,28 +95,23 @@
 
 (defn keep-keys
   "Map and only keep non-nil keys."
-  [f m]
-  (->> (map-keys f m) (filter-keys some?)))
+  [f m] (->> (map-keys f m) (filter-keys some?)))
 
 (defn keep-vals
   "Map and only keep non-nil values."
-  [f m]
-  (->> (map-vals f m) (filter-vals some?)))
+  [f m] (->> (map-vals f m) (filter-vals some?)))
 
 (defn keep-entries
   "Map and only keep entries with non-nil keys and values."
-  [f m]
-  (->> (map-entries f m) (filter-entries some?)))
+  [f m] (->> (map-entries f m) (filter-entries some?)))
 
 (defn reverse-map
   "Invert a map"
-  [m]
-  (into {} (map (comp vec reverse)) m))
+  [m] (into {} (map (comp vec reverse)) m))
 
 (defn grouping->pairs
   "Turn a map of groupings into a flat sequence of pairs of key and single value."
-  [m]
-  (mapcat #(map vector (repeat (key %)) (val %)) m))
+  [m] (mapcat #(map vector (repeat (key %)) (val %)) m))
 
 (defn reverse-grouping
   "Take a map of categories to items and turn it into a map of item to category."
@@ -150,8 +142,8 @@
           (let [~form temp#]
             ~then))))))
 
-(defmacro when-text [bindings then]
-  `(if-text ~bindings ~then))
+(defmacro when-text [bindings & body]
+  `(if-text ~bindings (do ~@body)))
 
 (defmacro if-seq
   "bindings => binding-form test
@@ -172,8 +164,8 @@
           (let [~form temp#]
             ~then))))))
 
-(defmacro when-seq [bindings then]
-  `(if-seq ~bindings ~then))
+(defmacro when-seq [bindings & body]
+  `(if-seq ~bindings (do ~@body)))
 
 (defn not-empty? [coll]
   ((complement empty?) coll))
@@ -252,10 +244,15 @@
   (let [pad-length (max 0 (- length (count (str s))))]
     (reduce (fn [ss s] (str s ss)) s (repeat pad-length pad))))
 
+(defn right-pad
+  "Pads a string on the right until it satisfies a desired width."
+  [s length pad]
+  (let [pad-length (max 0 (- length (count (str s))))]
+    (reduce (fn [ss s] (str ss s)) s (repeat pad-length pad))))
+
 (defn index-by
   "Index the items of a collection into a map by a key"
-  [key-fn coll]
-  (into {} (map (juxt key-fn identity)) coll))
+  [key-fn coll] (into {} (map (juxt key-fn identity)) coll))
 
 (def ^:dynamic *preempt*)
 
@@ -285,33 +282,27 @@
 
 (defn zip
   "Create tuples from sequences."
-  [& colls]
-  (apply map vector colls))
+  [& colls] (apply map vector colls))
 
 (defmacro letp
   "Like clojure.core/let but allows early returns via (preempt return-value)"
-  [bindings & body]
-  `(preemptable (let ~bindings ~@body)))
+  [bindings & body] `(preemptable (let ~bindings ~@body)))
 
 (defn map-groups
   "Map items in groups for the groups in a map of category to group."
-  [f m]
-  (map-vals (partial mapv f) m))
+  [f m] (map-vals (partial mapv f) m))
 
 (defn mapcat-groups
   "Mapcat items in groups for the groups in a map of category to group."
-  [f m]
-  (map-vals (comp vec (partial mapcat f)) m))
+  [f m] (map-vals (comp vec (partial mapcat f)) m))
 
 (defn filter-groups
   "Filter items in groups for the groups in a map of category to group."
-  [f m]
-  (map-vals (partial filterv f) m))
+  [f m] (map-vals (partial filterv f) m))
 
 (defn remove-groups
   "Remove items from groups in a map of category to group."
-  [f m]
-  (filter-groups (complement f) m))
+  [f m] (filter-groups (complement f) m))
 
 (defn reduce-groups
   "Reduce items in groups for the groups in a map of category to group."
@@ -337,23 +328,19 @@
 
 (defn one?
   "Is there exactly one thing in coll that satisfies pred?"
-  [pred coll]
-  (n? 1 pred coll))
+  [pred coll] (n? 1 pred coll))
 
 (defn lasts-by
   "Filter a sequence to only the last elements of each partition determined by key-fn."
-  [key-fn coll]
-  (map last (partition-by key-fn coll)))
+  [key-fn coll] (map last (partition-by key-fn coll)))
 
 (defn firsts-by
   "Filter a sequence to only the first elements of each partition determined by key-fn."
-  [key-fn coll]
-  (map first (partition-by key-fn coll)))
+  [key-fn coll] (map first (partition-by key-fn coll)))
 
 (defn walk-seq
   "Returns a lazy sequence of all forms within a data structure."
-  [form]
-  (cwm/walk-seq form))
+  [form] (cwm/walk-seq form))
 
 (defn paging
   "A function that returns a lazily generating sequence
@@ -437,13 +424,11 @@
 
 (defn concatv
   "Returns the concatenation as a vector."
-  [& xs]
-  (vec (apply concat xs)))
+  [& xs] (vec (apply concat xs)))
 
 (defn keyset
   "Returns the keys of a map as a set."
-  [m]
-  (set (keys m)))
+  [m] (set (keys m)))
 
 (defn diff-by
   "Like clojure.data/diff when used on sets except keyed by
@@ -472,9 +457,7 @@
 
 (defn pp
   "Prints the argument and returns it."
-  [x]
-  (pprint/pprint x)
-  x)
+  [x] (pprint/pprint x) x)
 
 (defn key=
   "Equality after conversion to keywords. Use when you're unsure if the
@@ -678,18 +661,15 @@
 
 (defn least
   "Returns the smallest element in the collection."
-  [coll]
-  (least-by identity coll))
+  [coll] (least-by identity coll))
 
 (defn greatest
   "Returns the largest element in the collection."
-  [coll]
-  (greatest-by identity coll))
+  [coll] (greatest-by identity coll))
 
 (defn extrema
   "Returns a tuple of [smallest largest] element in the collection."
-  [coll]
-  (extrema-by identity coll))
+  [coll] (extrema-by identity coll))
 
 (defn merge-sort
   "Lazily merges sequences that are already sorted in the same order."
@@ -733,8 +713,7 @@
 
 (defmacro quietly
   "Execute the body and return nil if there was an error"
-  [& body]
-  `(try ~@body (catch Throwable _# nil)))
+  [& body] `(try ~@body (catch Throwable _# nil)))
 
 (defmacro doforce
   "Execute each top-level form of the body even if they throw,
@@ -820,8 +799,7 @@
 
 (defn run-par!
   "Like run! but executes each element concurrently."
-  [f coll]
-  (run! deref (doall (map #(future (f %)) coll))))
+  [f coll] (run! deref (doall (map #(future (f %)) coll))))
 
 (defmacro together
   "Executes each top level form in body concurrently and returns
@@ -859,13 +837,11 @@
 
 (defn get-extension
   "Get the file extension from a filename."
-  [filename]
-  (first (re-find #"(\.[^.]*)$" filename)))
+  [filename] (first (re-find #"(\.[^.]*)$" filename)))
 
 (defn get-filename
   "Get the filename (without extension) from a filename"
-  [filename]
-  (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
+  [filename] (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
 
 (defn uniqueifier
   "Returns a function that will always produce a unique name
@@ -893,8 +869,7 @@
 
 (defn subsets
   "Returns all the subsets of a collection"
-  [coll]
-  (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
+  [coll] (reduce (fn [a x] (into a (map #(conj % x)) a)) #{#{}} coll))
 
 (defn symmetric-difference
   "Returns the union of the exclusive portions of s1 and s2."
@@ -902,18 +877,15 @@
 
 (defn submaps
   "Returns all the submaps of a map"
-  [m]
-  (->> m (seq) (subsets) (map (partial into {})) (set)))
+  [m] (->> m (seq) (subsets) (map (partial into {})) (set)))
 
 (defn submap?
   "Is m1 a submap of m2?"
-  [m1 m2]
-  (sets/subset? (set (seq m1)) (set (seq m2))))
+  [m1 m2] (sets/subset? (set (seq m1)) (set (seq m2))))
 
 (defn supermap?
   "Is m1 a supermap of m2?"
-  [m1 m2]
-  (sets/superset? (set (seq m1)) (set (seq m2))))
+  [m1 m2] (sets/superset? (set (seq m1)) (set (seq m2))))
 
 (defn indexcat-by
   "Like index-by except f is allowed to return a sequence of keys
@@ -1004,10 +976,29 @@
         :otherwise
         false))))
 
+(defn bytes->hex [bytes]
+  (loop [buf (StringBuffer.) counter 0]
+    (if (= (alength bytes) counter)
+      (.toString buf)
+      (let [hex (Integer/toHexString (bit-and 0xff (aget bytes counter)))]
+        (recur (.append buf (left-pad hex 2 "0")) (inc counter))))))
+
+(defn string->md5-hex [s]
+  (-> "MD5"
+      (MessageDigest/getInstance)
+      (.digest (.getBytes s))
+      (bytes->hex)))
+
+(defmacro once
+  "Runs a piece of code that evaluates only once (per ns) until the source changes."
+  [& body]
+  (let [sym (symbol (string->md5-hex (pr-str &form)))]
+    `(do (defonce ~sym ~@body) (var-get (var ~sym)))))
+
 (defmacro defonce-protocol
   "Like defprotocol but won't reload the protocol when you reload the ns."
   [sym & body]
-  `(defonce ~(symbol (str (name sym) "_")) (defprotocol ~sym ~@body)))
+  `(once (defprotocol ~sym ~@body)))
 
 (defmacro defmethodset
   "Like defmethod but allows for specifying implementations of multiple dispatch keys at once."

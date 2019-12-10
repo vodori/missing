@@ -283,6 +283,28 @@
     (mapcat identity)
     (vec)))
 
+(defgn root
+  "Returns the root of the graph if any, else nil."
+  [g]
+  (let [sources (sources g)]
+    (when (= 1 (count sources))
+      (first sources))))
+
+(defgn tree?
+  "Is this graph a tree?"
+  [g]
+  (let [root   (root g)
+        others (disj (nodes g) root)]
+    (and (some? root) (every? #(= 1 (incoming-degree g %)) others))))
+
+(defgn leaves
+  "Returns the leaves of the tree."
+  [g] (sinks g))
+
+(defgn branches
+  "Returns the branches of the tree."
+  [g] (sets/difference (nodes g) (leaves g)))
+
 (defgn cyclical?
   "Are there cycles in this graph?"
   [g] (nil? (topological-sort g)))
@@ -298,6 +320,78 @@
     (loop [graph* g]
       (let [expanded (reduce expand-entry graph* graph*)]
         (if (= expanded graph*) expanded (recur expanded))))))
+
+(defgn filterg
+  "Only keep nodes in the graph that satisfy pred. All
+   inbound and outbound edges involving removed nodes are
+   also removed."
+  [pred g]
+  (->> g
+       (miss/filter-groups pred)
+       (miss/filter-keys pred)
+       (normalize)))
+
+(defgn removeg
+  "Remove nodes in the graph that satisfy pred. All
+   inbound and outbound edges involving removed nodes
+   are also removed."
+  [pred g] (filterg (clojure.core/complement pred) g))
+
+(defgn contractg
+  "Removes nodes that match pred and adds new edges between
+   inbound and outbound neighbors of each node impacted
+   (leaves the transitive closure otherwise intact)."
+  [pred g]
+  (let [pairs    (edges g)
+        verts    (nodes g)
+        outbound (group-by first pairs)
+        inbound  (group-by second pairs)
+        purgeset (set (filter pred verts))
+        edges-   (sets/union
+                   (set (mapcat outbound purgeset))
+                   (set (mapcat inbound purgeset)))
+        edges+   (set
+                   (for [purge purgeset
+                         [_ o] (get outbound purge)
+                         [i _] (get inbound purge)]
+                     [i o]))]
+    (graph (sets/difference verts purgeset)
+           (-> pairs
+               (sets/difference edges-)
+               (sets/union edges+)))))
+
+(defgn mapg
+  "Transform nodes in the graph according to f."
+  [f g]
+  (->> (for [[k vs] g
+             :let [k' (f k)]
+             v vs
+             :let [v' (f v)]]
+         [k' v'])
+       (reduce (fn [g' [k v]] (update g' k (fnil conj #{}) v)) {})
+       (normalize)))
+
+(defgn expandg
+  "Expand nodes into more nodes while maintaining all the same edges
+   between any new nodes."
+  [f g]
+  (let [memof (memoize f)]
+    (->> (for [[k vs] g
+               :let [ks' (memof k)]
+               v  vs
+               :let [vs' (memof v)]
+               k' ks'
+               v' vs']
+           [k' v'])
+         (reduce (fn [g' [k v]] (update g' k (fnil conj #{}) v)) {})
+         (normalize))))
+
+(defgn select
+  "Return the subgraph of g that is within reach of 'from'"
+  [g from]
+  (miss/if-seq [extent (get (transitive-closure g) from)]
+    (filterg (conj extent from) g)
+    {}))
 
 (defgn shortest-paths
   "Uses Floyd-Warshall to returns a map of
