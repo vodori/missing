@@ -118,10 +118,6 @@
                  o (disj vertices v)]
              [v o]))))
 
-(defgn complete?
-  "Is the graph complete?"
-  [g] (= g (complete g)))
-
 (defgn union
   "Union two graphs together."
   [g1 g2]
@@ -184,6 +180,10 @@
   (and
     (sets/subset? (nodes g1) (nodes g2))
     (sets/subset? (edges g1) (edges g2))))
+
+(defgn complete?
+  "Is the graph complete?"
+  [g] (subgraph? (complete g) g))
 
 (defgn incoming-neighbors
   "Gets the neighbors of n from any inbound edges."
@@ -293,9 +293,10 @@
 (defgn tree?
   "Is this graph a tree?"
   [g]
-  (let [root   (root g)
-        others (disj (nodes g) root)]
-    (and (some? root) (every? #(= 1 (incoming-degree g %)) others))))
+  (let [root (root g)]
+    (and (some? root)
+         (->> (disj (nodes g) root)
+              (every? #(= 1 (incoming-degree g %)))))))
 
 (defgn leaves
   "Returns the leaves of the tree."

@@ -481,3 +481,33 @@
   (is (= [Double/MAX_VALUE Double/MAX_VALUE] (extrema [Double/MAX_VALUE])))
   (is (= [-3 6] (extrema [-1 -2 -3 6 5 4])))
   (is (= [[1 -2] [50 9]] (extrema [[1 2] [1 -2] [50 -9] [50 9] [50 8]]))))
+
+(deftest piecewise-test
+  (let [vec+ (piecewise +)
+        vec- (piecewise -)]
+    (is (= [4 5 6] (vec+ [1 2 3] [4 5 6] [-1 -2 -3])))
+    (is (= [-1 -1 -1] (vec- [1 1 1] [1 1 1] [1 1 1])))))
+
+(deftest keyed-test
+  (let [x [1 2 3] y [4 5 6]]
+    (is (= {:x [1 2 3] :y [4 5 6]} (keyed x y)))))
+
+(deftest single?-test
+  (is (not (single? #{})))
+  (is (not (single? [])))
+  (is (not (single? {:a :b})))
+  (is (single? [:a]))
+  (is (single? '(:a))))
+
+(deftest atomic-init!-test
+  (let [a (atom {})]
+    (is (empty? @invokes))
+    (is (= :initialized (atomic-init! a [:a] (capture :initialized))))
+    (is (= :initialized (force (get @a :a))))
+    (is (= [:initialized] @invokes))
+    (is (= :initialized (atomic-init! a [:a] (capture :initialized))))
+    (is (= [:initialized] @invokes))))
+
+(deftest fixed-point-test
+  (letfn [(step [x] (Math/abs ^long x))]
+    (is (= 5 (fixed-point step -5)))))

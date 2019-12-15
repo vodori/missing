@@ -10,7 +10,6 @@
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID)
            (java.time Duration)
-           (java.util.regex Pattern)
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)))
@@ -168,10 +167,10 @@
   `(if-seq ~bindings (do ~@body)))
 
 (defn not-empty? [coll]
-  ((complement empty?) coll))
+  (boolean (seq coll)))
 
 (defn not-blank? [s]
-  ((complement strings/blank?) s))
+  (not (strings/blank? s)))
 
 (defn assoc*
   "Like assoc, but assumes associng into nil with an integer
@@ -211,17 +210,44 @@
                   (assoc* m k (apply f (get m k) args)))))]
      (up m ks f args))))
 
+(defn fixed-point
+  "Finds the fixed point of f given initial input x. Optionally
+   provide a max number of iterations to attempt before returning
+   nil, else runs indefinitely if no fixed point is found."
+  ([f x]
+   (loop [[[x1 x2] :as parts]
+          (partition 2 1 (iterate f x))]
+     (if (= x1 x2) x1 (recur (rest parts)))))
+  ([max f x]
+   (loop [counter max
+          [[x1 x2] :as parts]
+          (partition 2 1 (iterate f x))]
+     (if (= x1 x2)
+       x1
+       (when (pos? counter)
+         (recur (dec counter) (rest parts)))))))
+
 (defn lstrip
   "Strip a prefix from a string."
   [s strip]
-  (let [re (format "^(%s)+" (Pattern/quote strip))]
-    (strings/replace s (Pattern/compile re) "")))
+  (let [result
+        (if (strings/starts-with? s strip)
+          (subs s (.length strip))
+          s)]
+    (if (and (not= result s) (= 1 (.length strip)))
+      (recur result strip)
+      result)))
 
 (defn rstrip
   "Strip a suffix from a string."
   [s strip]
-  (let [re (format "(%s)+$" (Pattern/quote strip))]
-    (strings/replace s (Pattern/compile re) "")))
+  (let [result
+        (if (strings/ends-with? s strip)
+          (subs s 0 (- (.length s) (.length strip)))
+          s)]
+    (if (and (not= result s) (= 1 (.length strip)))
+      (recur result strip)
+      result)))
 
 (defn join-paths
   "Join paths together. Accepts string arguments or collections
@@ -230,7 +256,8 @@
    a single '/' between each segment."
   [& paths]
   (letfn [(join [p1 p2]
-            (let [part1 (rstrip p1 "/") part2 (lstrip p2 "/")]
+            (let [part1 (rstrip p1 "/")
+                  part2 (lstrip p2 "/")]
               (if-not (strings/blank? part1)
                 (str part1 "/" part2)
                 part2)))]
@@ -241,13 +268,13 @@
 (defn left-pad
   "Pad a string on the left until it satisfies a desired width."
   [s length pad]
-  (let [pad-length (max 0 (- length (count (str s))))]
+  (let [pad-length (max 0 (- length (.length (str s))))]
     (reduce (fn [ss s] (str s ss)) s (repeat pad-length pad))))
 
 (defn right-pad
   "Pads a string on the right until it satisfies a desired width."
   [s length pad]
-  (let [pad-length (max 0 (- length (count (str s))))]
+  (let [pad-length (max 0 (- length (.length (str s))))]
     (reduce (fn [ss s] (str ss s)) s (repeat pad-length pad))))
 
 (defn index-by
@@ -317,6 +344,12 @@
   (and (not (string? x))
        (not (map? x))
        (seqable? x)))
+
+(defn single?
+  "Is this a collection of a single value?"
+  [x] (and (iterable? x)
+           (not-empty? x)
+           (= 1 (bounded-count 2 x))))
 
 (defn n?
   "Are there exactly n things in coll that satisfy pred?"
@@ -421,6 +454,12 @@
   [f default]
   `(let [f# ~f default# (delay ~default)]
      (fn [& args#] (or (apply f# args#) (force default#)))))
+
+(defmacro defmemo
+  "Define a function with a memoized implementation."
+  [& defnargs]
+  `(doto (defn ~@defnargs)
+     (alter-var-root #(with-meta (memoize %1) (meta %1)))))
 
 (defn concatv
   "Returns the concatenation as a vector."
@@ -670,6 +709,70 @@
 (defn extrema
   "Returns a tuple of [smallest largest] element in the collection."
   [coll] (extrema-by identity coll))
+
+(defn filter-nth
+  "Filters a seq based on a function of the nth position."
+  [n pred coll] (filter (fn [x] (pred (nth x n))) coll))
+
+(defn filter1
+  "Filters a seq of tuples on a predicate of the first elements."
+  [pred coll] (filter-nth 0 pred coll))
+
+(defn filter2
+  "Filters a seq of tuples on a predicate of the second elements."
+  [pred coll] (filter-nth 1 pred coll))
+
+(defn map-nth
+  "Updates the nth position of each element in a seq of tuples."
+  [n f coll] (map (comp (fn [x] (update x n f)) vec) coll))
+
+(defn map1
+  "Updates the first position of each element in a seq of tuples."
+  [f coll] (map-nth 0 f coll))
+
+(defn map2
+  "Updates the second position of each element in a seq of tuples."
+  [f coll] (map-nth 1 f coll))
+
+(defmacro keyed
+  "Creates a map of keyword => value from symbol names and the values they refer to."
+  [& keys]
+  `(into {} ~(mapv (fn [k#] [(keyword k#) k#]) keys)))
+
+(defmacro stringed
+  "Creates a map of string => value from symbol names and the values they refer to."
+  [& keys]
+  `(into {} ~(mapv (fn [k#] [(name k#) k#]) keys)))
+
+(defn piecewise
+  "Returns a new function that will apply f to respective elements
+   across each provided collection. f should be an associative
+   function of two elements."
+  ([f]
+   (fn [& colls]
+     (vec
+       (for [cells (apply zip colls)]
+         (reduce f cells)))))
+  ([f val]
+   (fn [& colls]
+     (vec
+       (for [cells (apply zip colls)]
+         (reduce f val cells))))))
+
+(defn pmapcat
+  "Like pmap, but for mapcatting."
+  ([f coll] (mapcat identity (pmap f coll)))
+  ([f coll & colls] (mapcat identity (apply pmap f coll colls))))
+
+(defmacro atomic-init!
+  "Used to update a reference type to acquire a 'place' and only
+   after acquiring the place does it run the code to initialize
+   the value."
+  [ref path & body]
+  `(let [path#    ~path
+         updater# (fn [x#] (or x# (delay ~@body)))
+         updated# (swap! ~ref update-in path# updater#)]
+     (force (get-in updated# path#))))
 
 (defn merge-sort
   "Lazily merges sequences that are already sorted in the same order."
@@ -976,14 +1079,18 @@
         :otherwise
         false))))
 
-(defn bytes->hex [bytes]
+(defn bytes->hex
+  "Converts a byte array into a hex encoded string."
+  [bytes]
   (loop [buf (StringBuffer.) counter 0]
     (if (= (alength bytes) counter)
       (.toString buf)
       (let [hex (Integer/toHexString (bit-and 0xff (aget bytes counter)))]
         (recur (.append buf (left-pad hex 2 "0")) (inc counter))))))
 
-(defn string->md5-hex [s]
+(defn string->md5-hex
+  "Hashes a string and returns the md5 checksum (hex encoded)"
+  [s]
   (-> "MD5"
       (MessageDigest/getInstance)
       (.digest (.getBytes s))
