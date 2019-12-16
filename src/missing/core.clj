@@ -748,16 +748,15 @@
   "Returns a new function that will apply f to respective elements
    across each provided collection. f should be an associative
    function of two elements."
-  ([f]
-   (fn [& colls]
-     (vec
-       (for [cells (apply zip colls)]
-         (reduce f cells)))))
-  ([f val]
-   (fn [& colls]
-     (vec
-       (for [cells (apply zip colls)]
-         (reduce f val cells))))))
+  [f & colls]
+  (cond
+    (empty? colls)
+    ()
+    (= 1 (bounded-count 2 colls))
+    (seq (first colls))
+    :else
+    (for [cells (apply zip colls)]
+      (reduce f cells))))
 
 (defn pmapcat
   "Like pmap, but for mapcatting."

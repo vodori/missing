@@ -483,10 +483,8 @@
   (is (= [[1 -2] [50 9]] (extrema [[1 2] [1 -2] [50 -9] [50 9] [50 8]]))))
 
 (deftest piecewise-test
-  (let [vec+ (piecewise +)
-        vec- (piecewise -)]
-    (is (= [4 5 6] (vec+ [1 2 3] [4 5 6] [-1 -2 -3])))
-    (is (= [-1 -1 -1] (vec- [1 1 1] [1 1 1] [1 1 1])))))
+  (is (= [4 5 6] (piecewise + [1 2 3] [4 5 6] [-1 -2 -3])))
+  (is (= [-1 -1 -1] (piecewise - [1 1 1] [1 1 1] [1 1 1]))))
 
 (deftest keyed-test
   (let [x [1 2 3] y [4 5 6]]
