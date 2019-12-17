@@ -12,7 +12,8 @@
            (java.time Duration)
            (java.nio.file FileSystems)
            (java.io File)
-           (java.security MessageDigest)))
+           (java.security MessageDigest)
+           (clojure.lang IPersistentVector LongRange Range)))
 
 (defn uuid
   "Get a uuid as string"
@@ -743,6 +744,93 @@
   "Creates a map of string => value from symbol names and the values they refer to."
   [& keys]
   `(into {} ~(mapv (fn [k#] [(name k#) k#]) keys)))
+
+(defn llast
+  "The complement to clojure.core/ffirst."
+  [coll]
+  (last (last coll)))
+
+(defn get-field
+  "Access an object field, even if private or protected."
+  [obj field]
+  (let [m (.getDeclaredField (class obj) (name field))]
+    (.setAccessible m true)
+    (.get m obj)))
+
+(defn take*
+  "An alternative implementation of clojure.core/take that
+   provides a more efficient implementation for certain types
+   of coll."
+  [n coll]
+  (cond
+    (instance? IPersistentVector coll)
+    (subvec coll 0 n)
+    (or (instance? LongRange coll) (instance? Range coll))
+    (let [start (get-field coll :start)
+          stop  (get-field coll :end)
+          step  (get-field coll :step)
+          mid   (+ start (* n step))]
+      (range start (min mid stop) step))
+    :otherwise
+    (take n coll)))
+
+(defn drop*
+  "An alternative implementation of clojure.core/drop that
+   provides a more efficient implementation for certain types
+   of coll."
+  [n coll]
+  (cond
+    (instance? IPersistentVector coll)
+    (subvec coll n)
+    (or (instance? LongRange coll) (instance? Range coll))
+    (let [start (get-field coll :start)
+          stop  (get-field coll :end)
+          step  (get-field coll :step)
+          mid   (+ start (* n step))]
+      (range (min mid stop) stop step))
+    :otherwise
+    (drop n coll)))
+
+(defn split-at*
+  "An alternative implementation of clojure.core/split-at that
+   provides a more efficient implementation for certain types
+   of coll."
+  [index coll]
+  [(take* index coll) (drop* index coll)])
+
+(defn binary-search
+  "Implements a generic binary search algorithm. Find a value in coll
+   for which (compare value x) is 0, else nil. coll should already be
+   sorted."
+  ([coll x]
+   (binary-search compare coll x))
+  ([compare coll x]
+   (cond
+     (empty? coll)
+     nil
+     (single? coll)
+     (let [entry (first coll)]
+       (when (zero? (compare entry x))
+         entry))
+     :otherwise
+     (let [[left right]
+           (split-at* (quot (count coll) 2) coll)
+           pivot
+           (first right)]
+       (condp #(%1 %2) (compare pivot x)
+         pos? (recur compare left x)
+         neg? (recur compare right x)
+         zero? pivot)))))
+
+(defn range-search
+  "From an ordered set of ranges, find the range which contains x, else nil."
+  [coll x]
+  (letfn [(check [[start stop] v]
+            (cond
+              (gt v stop) -1
+              (lt v start) 1
+              :otherwise 0))]
+    (binary-search check coll x)))
 
 (defn piecewise
   "Returns a new function that will apply f to respective elements
