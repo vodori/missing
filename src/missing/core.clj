@@ -8,7 +8,7 @@
             [clojure.pprint :as pprint]
             [missing.cwm :as cwm])
   (:import (java.util.concurrent TimeUnit)
-           (java.util EnumSet UUID)
+           (java.util EnumSet UUID Comparator)
            (java.time Duration)
            (java.nio.file FileSystems)
            (java.io File)
@@ -861,25 +861,31 @@
          updated# (swap! ~ref update-in path# updater#)]
      (force (get-in updated# path#))))
 
+(defn merge-sort-by
+  "Lazily produces a sorted sequence from many sorted input sequences according to key-fn and comp."
+  ([key-fn colls]
+   (merge-sort-by key-fn compare colls))
+  ([key-fn ^Comparator comparator colls]
+   (let [sentinel (Object.)]
+     (letfn [(step [[_ colls]]
+               (let [filtered (keep seq colls)]
+                 (if (empty? filtered)
+                   [sentinel ()]
+                   (let [[[[_ emit] & tail] & others]
+                         (sort-by ffirst comparator filtered)]
+                     [emit (if (seq tail) (cons tail others) others)]))))]
+       (->> [sentinel (map #(map (juxt key-fn identity) %) colls)]
+            (iterate step)
+            (map first)
+            (drop 1)
+            (take-while (complement #{sentinel})))))))
+
 (defn merge-sort
-  "Lazily merges sequences that are already sorted in the same order."
+  "Lazily produces a sorted sequence from many sorted input sequences according to comp."
   ([colls]
    (merge-sort compare colls))
-  ([comp colls]
-   (let [begin-marker (Object.)
-         end-marker   (Object.)]
-     (letfn [(next-item [[_ colls]]
-               (if (nil? colls)
-                 [end-marker nil]
-                 (let [[[yield & p] & q]
-                       (sort-by first comp colls)]
-                   [yield (if p (cons p q) q)])))]
-       (->> colls
-            (vector begin-marker)
-            (iterate next-item)
-            (drop 1)
-            (map first)
-            (take-while #(not (identical? end-marker %))))))))
+  ([^Comparator comparator colls]
+   (merge-sort-by identity comparator colls)))
 
 (defn contiguous-by
   "Transducer that partitions collections into contiguous segments

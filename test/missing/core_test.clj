@@ -509,3 +509,16 @@
 (deftest fixed-point-test
   (letfn [(step [x] (Math/abs ^long x))]
     (is (= 5 (fixed-point step -5)))))
+
+(deftest merge-sort-by-test
+  (let [colls [[{:x 1} {:x 3} {:x 5}] [] [{:x 2} {:x 4} {:x 6}]]]
+    (is (= () (merge-sort-by :x [])))
+    (is (= () (merge-sort-by :x [[] []])))
+    (is (= '({:x 1} {:x 2} {:x 3} {:x 4} {:x 5} {:x 6}) (merge-sort-by :x colls)))))
+
+(deftest merge-sort-test
+  (let [colls [[1 3 5] [] [2 4 6]]]
+    (is (= () (merge-sort [])))
+    (is (= () (merge-sort [[] []])))
+    (is (= '(1 2 3 4 5 6) (merge-sort colls)))
+    (is (= '(6 5 4 3 2 1) (merge-sort (flip compare) (map reverse colls))))))
