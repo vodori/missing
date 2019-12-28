@@ -20,8 +20,11 @@
   [] (str (UUID/randomUUID)))
 
 (defn read-edn-string
-  "Reads a string of edn and returns the parsed data. Applies any loaded data
-   readers and falls back to propagating tagged literals when no applicable reader exists."
+  "Reads a string of edn and returns the parsed data. Applies all loaded data
+   readers and falls back to blindly forwarding tagged literals when no applicable
+   reader exists. Be careful to only call this when you either trust the input
+   or know that you have no data readers loaded that can invoke dangerous code
+   for arbitrary input."
   [s] (edn/read-string {:readers *data-readers* :default tagged-literal} s))
 
 (defn locate-file
@@ -29,7 +32,7 @@
      file:      prefix to mandate file system path
      classpath: prefix to mandate classpath
      leading slash presumes file system
-     otherwise, check classpath first then filesystem"
+     otherwise, check classpath first, then filesystem"
   [path]
   (when-some
     [f (and path
@@ -1193,7 +1196,7 @@
   "Runs a piece of code that evaluates only once (per ns) until the source changes."
   [& body]
   (let [sym (symbol (string->md5-hex (pr-str &form)))]
-    `(do (defonce ~sym ~@body) (var-get (var ~sym)))))
+    `(do (defonce ~sym (do ~@body)) (var-get (var ~sym)))))
 
 (defmacro defonce-protocol
   "Like defprotocol but won't reload the protocol when you reload the ns."
