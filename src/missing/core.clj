@@ -514,14 +514,22 @@
      (- (+ (count s1') (count s2'))
         (|intersection| s1' s2')))))
 
-(defn jaccard
-  "Returns a ratio between 0 and 1 representing the degree of overlap
-   between sets. A score of 1 means the sets are exactly equal, a
-   score of zero means they have no elements in common."
-  ([s] 1)
-  ([s1 s2]
-   (let [s1' (set s1) s2' (set s2) inter (|intersection| s1' s2')]
-     (/ inter (- (+ (count s1') (count s2')) inter)))))
+(defn jaccard-coefficient
+  "Returns a ratio between 0 and 1 representing the degree of overlap between sets."
+  [s1 s2]
+  (let [s1'   (set s1)
+        s2'   (set s2)
+        inter (|intersection| s1' s2')
+        union (- (+ (count s1') (count s2')) inter)]
+    (if (zero? union) 1 (/ inter union))))
+
+(defn dice-coefficient
+  "Returns a ratio between 0 and 1 representing the degree of overlap between sets."
+  [s1 s2]
+  (let [s1'   (set s1)
+        s2'   (set s2)
+        denom (+ (count s1') (count s2'))]
+    (if (zero? denom) 1 (/ (* 2 (|intersection| s1' s2')) denom))))
 
 (defn pp
   "Prints the argument and returns it."
