@@ -498,6 +498,31 @@
                 (last maps))))]
     (apply inner-merge maps)))
 
+(defn |intersection|
+  "Computes the cardinality of the intersection."
+  ([s] (count s))
+  ([s1 s2]
+   (let [[small-set big-set] (sort-by count [(set s1) (set s2)])]
+     (-> (fn [result item] (if (big-set item) (inc result) result))
+         (reduce 0 small-set)))))
+
+(defn |union|
+  "Computes the cardinality of the union."
+  ([s] (count s))
+  ([s1 s2]
+   (let [s1' (set s1) s2' (set s2)]
+     (- (+ (count s1') (count s2'))
+        (|intersection| s1' s2')))))
+
+(defn jaccard
+  "Returns a ratio between 0 and 1 representing the degree of overlap
+   between sets. A score of 1 means the sets are exactly equal, a
+   score of zero means they have no elements in common."
+  ([s] 1)
+  ([s1 s2]
+   (let [s1' (set s1) s2' (set s2) inter (|intersection| s1' s2')]
+     (/ inter (- (+ (count s1') (count s2')) inter)))))
+
 (defn pp
   "Prints the argument and returns it."
   [x] (pprint/pprint x) x)
