@@ -27,7 +27,7 @@
    for arbitrary input."
   [s] (edn/read-string {:readers *data-readers* :default tagged-literal} s))
 
-(defn locate-file
+(defn ^File locate-file
   "Given a path attempts to find the best matching file.
      file:      prefix to mandate file system path
      classpath: prefix to mandate classpath
@@ -35,16 +35,16 @@
      otherwise, check classpath first, then filesystem"
   [path]
   (when-some
-    [f (and path
-            (cond
-              (strings/starts-with? path "/")
-              (io/file path)
-              (strings/starts-with? path "file:")
-              (some-> path (strings/replace-first "file:" "") io/file)
-              (strings/starts-with? path "classpath:")
-              (some-> path (strings/replace-first "classpath:" "") io/resource io/file)
-              :otherwise
-              (or (locate-file (str "classpath:" path)) (locate-file (str "file:" path)))))]
+    [^File f (and path
+                  (cond
+                    (strings/starts-with? path "/")
+                    (io/file path)
+                    (strings/starts-with? path "file:")
+                    (some-> path (strings/replace-first "file:" "") io/file)
+                    (strings/starts-with? path "classpath:")
+                    (some-> path (strings/replace-first "classpath:" "") io/resource io/file)
+                    :otherwise
+                    (or (locate-file (str "classpath:" path)) (locate-file (str "file:" path)))))]
     (when (.exists f) f)))
 
 (defn load-edn-resource
@@ -233,7 +233,7 @@
 
 (defn lstrip
   "Strip a prefix from a string."
-  [s strip]
+  [^String s ^String strip]
   (let [result
         (if (strings/starts-with? s strip)
           (subs s (.length strip))
@@ -244,7 +244,7 @@
 
 (defn rstrip
   "Strip a suffix from a string."
-  [s strip]
+  [^String s ^String strip]
   (let [result
         (if (strings/ends-with? s strip)
           (subs s 0 (- (.length s) (.length strip)))
@@ -989,7 +989,9 @@
   ([reducer init freq f]
    (let [state  (atom init)
          stop   (atom false)
-         millis (if (instance? Duration freq) (.toMillis freq) freq)]
+         millis (if (instance? Duration freq)
+                  (.toMillis ^Duration freq)
+                  freq)]
      (add-watch state :closer #(when (= :stop %4) (reset! stop true)))
      (doto (Thread.
              ^Runnable
@@ -1027,7 +1029,7 @@
       (let [pred (apply some-fn (map (partial glob-matcher rr) globs))]
         (->> (file-seq rr)
              (filter pred)
-             (sort-by #(.getPath %)))))))
+             (sort-by #(.getPath ^File %)))))))
 
 (defn run-par!
   "Like run! but executes each element concurrently."
@@ -1045,11 +1047,13 @@
    to amount of time in that unit. Bucket the duration into larger
    time units before smaller time units."
   [duration]
-  (let [nanos
-        (.toNanos
-          (if (instance? Duration duration)
-            duration (Duration/ofMillis duration)))]
-    (loop [aggregate (array-map) [this-unit & other-units] (reverse (EnumSet/allOf TimeUnit)) remainder nanos]
+  (let [duration
+        (if (instance? Duration duration)
+          ^Duration duration
+          (Duration/ofMillis duration))
+        nanos
+        (.toNanos duration)]
+    (loop [aggregate (array-map) [^TimeUnit this-unit & other-units] (reverse (EnumSet/allOf TimeUnit)) remainder nanos]
       (let [in-unit (.convert this-unit remainder TimeUnit/NANOSECONDS)]
         (let [updated  (assoc aggregate (keyword (strings/lower-case (.name this-unit))) in-unit)
               leftover (- remainder (.convert TimeUnit/NANOSECONDS in-unit this-unit))]
@@ -1210,16 +1214,16 @@
 
 (defn bytes->hex
   "Converts a byte array into a hex encoded string."
-  [bytes]
+  [^bytes bites]
   (loop [buf (StringBuffer.) counter 0]
-    (if (= (alength bytes) counter)
+    (if (= (alength bites) counter)
       (.toString buf)
-      (let [hex (Integer/toHexString (bit-and 0xff (aget bytes counter)))]
+      (let [hex (Integer/toHexString (bit-and 0xff (aget bites counter)))]
         (recur (.append buf (left-pad hex 2 "0")) (inc counter))))))
 
 (defn string->md5-hex
   "Hashes a string and returns the md5 checksum (hex encoded)"
-  [s]
+  [^String s]
   (-> "MD5"
       (MessageDigest/getInstance)
       (.digest (.getBytes s))
@@ -1261,3 +1265,22 @@
                   (partition 2 (destructure bindings)))]
       `(let* ~(vec (mapcat identity bindings))
          ~@(cwm/replace-symbols-except-where-shadowed replacements body)))))
+
+(defn reset-var!
+  "Sets the root value of a var."
+  [var value]
+  (alter-var-root var (constantly value)))
+
+(defmacro defpatch
+  "An anaphoric macro for patching existing functions. Original function is bound to the symbol 'this'.
+   Safe to execute multiple times, 'this' will always refer to the original implementation and never
+   the previously patched implementation."
+  [symbol bindings & body]
+  `(let [var# (var ~symbol)]
+     (alter-var-root var#
+       (letfn [(define# [orig#]
+                 (let [~'this orig#]
+                   (with-meta (fn ~bindings ~@body)
+                              (merge (meta orig#) {::original orig#}))))]
+         (fn [original#] (define# (or (-> original# meta ::original) original#)))))
+     var#))
