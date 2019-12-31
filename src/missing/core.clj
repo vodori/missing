@@ -13,7 +13,7 @@
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang IPersistentVector LongRange Range)))
+           (clojure.lang IPersistentVector LongRange Range Var)))
 
 (defn uuid
   "Get a uuid as string"
@@ -1268,8 +1268,8 @@
 
 (defn reset-var!
   "Sets the root value of a var."
-  [var value]
-  (alter-var-root var (constantly value)))
+  [^Var v value]
+  (alter-var-root v (constantly value)))
 
 (defmacro defpatch
   "An anaphoric macro for patching existing functions. Original function is bound to the symbol 'this'.
