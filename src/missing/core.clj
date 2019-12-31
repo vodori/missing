@@ -13,7 +13,7 @@
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang IPersistentVector LongRange Range Var)))
+           (clojure.lang IPersistentVector LongRange Range Var MultiFn)))
 
 (defn uuid
   "Get a uuid as string"
@@ -1271,6 +1271,18 @@
   [^Var v value]
   (alter-var-root v (constantly value)))
 
+(defmacro defmulti*
+  "Like clojure.core/defmulti, but actually updates the dispatch value when you reload it."
+  [symbol dispatch-fn]
+  `(let [dispatch-fun# ~dispatch-fn
+         existing-var# (resolve '~symbol)]
+     (if-some [dispatch# (some-> existing-var# meta ::holder)]
+       (do (vreset! dispatch# dispatch-fun#) existing-var#)
+       (let [holder# (volatile! dispatch-fun#)
+             var# (defmulti ~symbol (fn [& args#] (apply @holder# args#)))]
+         (alter-meta! var# merge {::holder holder#})
+         var#))))
+
 (defmacro defpatch
   "An anaphoric macro for patching existing functions. Original function is bound to the symbol 'this'.
    Safe to execute multiple times, 'this' will always refer to the original implementation and never
@@ -1284,3 +1296,19 @@
                               (merge (meta orig#) {::original orig#}))))]
          (fn [original#] (define# (or (-> original# meta ::original) original#)))))
      var#))
+
+(defmacro defpatchmethod
+  "An anaphoric macro for patching existing multimethods. Original method is bound to the symbol 'this'.
+   Safe to execute multiple times, 'this' will always refer to the original implementation and never
+   the previously patched implementation."
+  [multifn dispatch-val bindings & body]
+  `(let [multi#    ~multifn
+         dispatch# ~dispatch-val
+         original# (get-method multi# dispatch#)]
+     (letfn [(define# [orig#]
+               (.addMethod ^MultiFn multi# dispatch#
+                           (let [~'this orig#]
+                             (with-meta (fn ~bindings ~@body)
+                                        (merge (meta orig#)
+                                               {::original orig#})))))]
+       (define# (or (-> original# meta ::original) original#)))))
