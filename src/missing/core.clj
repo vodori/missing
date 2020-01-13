@@ -407,9 +407,6 @@
                        '())))))]
        (fetcher offset limit)))))
 
-(defn none? [pred coll]
-  (every? (complement pred) coll))
-
 (defn contains-all?
   "Does coll contain every key?"
   [coll [k & more :as keys]]
@@ -419,6 +416,35 @@
       (if (or (false? res) (empty? more))
         res
         (recur coll more)))))
+
+(defn backoff-seq
+  "Returns an infinite seq of exponential back-off timeouts with random jitter."
+  ([] (backoff-seq 32000))
+  ([max]
+   (->>
+     (lazy-cat
+       (->> (cons 0 (iterate (partial * 2) 1000))
+            (take-while #(< % max)))
+       (repeat max))
+     (map (fn [x] (+ x (rand-int 1000)))))))
+
+(defmacro backoff
+  "Runs body up to max times with an exponential backoff strategy."
+  [max & body]
+  `(let [iteration#
+         (fn []
+           (try [nil (do ~@body)]
+                (catch Throwable e#
+                  [e# nil])))]
+     (loop [backoffs# (take (max 0 (dec ~max)) (backoff-seq))]
+       (let [[er# v#] (iteration#)]
+         (if-not (some? er#)
+           v#
+           (if (seq backoffs#)
+             (do
+               (Thread/sleep (first backoffs#))
+               (recur (rest backoffs#)))
+             (throw er#)))))))
 
 (defn lift-by
   "Returns a function that first applies the lift to each argument before applying the original function."
@@ -1279,7 +1305,7 @@
      (if-some [dispatch# (some-> existing-var# meta ::holder)]
        (do (vreset! dispatch# dispatch-fun#) existing-var#)
        (let [holder# (volatile! dispatch-fun#)
-             var# (defmulti ~symbol (fn [& args#] (apply @holder# args#)))]
+             var#    (defmulti ~symbol (fn [& args#] (apply @holder# args#)))]
          (alter-meta! var# merge {::holder holder#})
          var#))))
 
@@ -1294,7 +1320,7 @@
                  (let [~'this orig#]
                    (with-meta (fn ~bindings ~@body)
                               (merge (meta orig#) {::original orig#}))))]
-         (fn [original#] (define# (or (-> original# meta ::original) original#)))))
+         (fn [original#] (define# (or (some-> original# meta ::original) original#)))))
      var#))
 
 (defmacro defpatchmethod
@@ -1311,4 +1337,4 @@
                              (with-meta (fn ~bindings ~@body)
                                         (merge (meta orig#)
                                                {::original orig#})))))]
-       (define# (or (-> original# meta ::original) original#)))))
+       (define# (or (some-> original# meta ::original) original#)))))
