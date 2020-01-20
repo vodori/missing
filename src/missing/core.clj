@@ -8,7 +8,7 @@
             [clojure.pprint :as pprint]
             [missing.cwm :as cwm])
   (:import (java.util.concurrent TimeUnit)
-           (java.util EnumSet UUID Comparator)
+           (java.util EnumSet UUID Comparator Properties)
            (java.time Duration)
            (java.nio.file FileSystems)
            (java.io File)
@@ -979,6 +979,80 @@
   ([] nil)
   ([x] `(quietly ~x))
   ([x & next] `(do (quietly ~x) (doforce ~@next))))
+
+(defmacro attempt
+  "Returns result of first form that doesn't throw and doesn't return nil."
+  ([] nil)
+  ([x] `(quietly ~x))
+  ([x & next] `(if-some [y# (attempt ~x)] y# (attempt ~@next))))
+
+(defn parse-number [s]
+  (attempt (Long/parseLong s) (Double/parseDouble s)))
+
+(defn parse-boolean [s]
+  ({"true" true "false" false} s))
+
+(defn parse-best-guess [s]
+  (attempt (parse-number s) (parse-boolean s) s))
+
+(defn get*
+  "Like clojure.core/get except treats strings and keywords
+   as interchangeable and not-found as the result if there is
+   no found value *or* if the found value is nil."
+  ([m k] (get* m k nil))
+  ([m k not-found]
+   (if-some [result
+             (some->
+               (or
+                 (find m k)
+                 (cond
+                   (keyword? k)
+                   (find m (name k))
+                   (string? k)
+                   (find m (keyword k))))
+               (val))]
+     result not-found)))
+
+(defn get-in*
+  "Like clojure.core/get-in except built atop get*."
+  ([m ks]
+   (reduce get* m ks))
+  ([m ks not-found]
+   (loop [sentinel (Object.)
+          m        m
+          ks       (seq ks)]
+     (if ks
+       (let [m (get* m (first ks) sentinel)]
+         (if (identical? sentinel m)
+           not-found
+           (recur sentinel m (next ks))))
+       m))))
+
+(defn template
+  "A simple string templating function that replaces {x.y.z} placeholders
+   with values from the context."
+  [text context]
+  (letfn [(replacer [[_ group]]
+            (let [val (or (get* context group)
+                          (->> (strings/split group #"\.")
+                               (map parse-best-guess)
+                               (get-in* context)))]
+              (if (iterable? val) (strings/join "," (sort val)) (str val))))]
+    (strings/replace text #"\{([^\{\}]+)\}" replacer)))
+
+(def get-jar-version
+  (memoize
+    (fn [dep]
+      (let [segment0 "META-INF/maven"
+            segment1 (or (namespace dep) (name dep))
+            segment2 (name dep)
+            segment3 "pom.properties"
+            path     (strings/join "/" [segment0 segment1 segment2 segment3])
+            props    (io/resource path)]
+        (when props
+          (with-open [stream (io/input-stream props)]
+            (let [props (doto (Properties.) (.load stream))]
+              (.getProperty props "version"))))))))
 
 (defmacro with-timeout
   "Run body on a separate thread subject to a timeout. If reaches timeout
