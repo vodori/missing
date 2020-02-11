@@ -170,6 +170,20 @@
 (defmacro when-seq [bindings & body]
   `(if-seq ~bindings (do ~@body)))
 
+(defmacro when-some*
+  ([bindings & body]
+   (if (seq bindings)
+     `(when-some [~(first bindings) ~(second bindings)]
+        (when-some* ~(drop 2 bindings) ~@body))
+     `(do ~@body))))
+
+(defmacro when-let*
+  ([bindings & body]
+   (if (seq bindings)
+     `(when-let [~(first bindings) ~(second bindings)]
+        (when-let* ~(drop 2 bindings) ~@body))
+     `(do ~@body))))
+
 (defn not-empty? [coll]
   (boolean (seq coll)))
 
