@@ -524,54 +524,36 @@
     (is (= '(6 5 4 3 2 1) (merge-sort (flip compare) (map reverse colls))))))
 
 (deftest when-some-test
-  (let [atom (atom {})]
-    (when-some* [a 1
-                 b false
-                 c 2
-                 d (+ a c)]
-      (swap! atom assoc :d d))
-    (is (= 3 (:d @atom)))))
+  (is (= 3 (when-let* [a 1
+                       b 2
+                       c (+ a b)] c))))
 
 (deftest when-some-false-test
-  (let [atom (atom {})]
-    (when-some* [a 1
-                 b false
-                 c 2
-                 d (+ a c)]
-      (swap! atom assoc :d d))
-    (is (= 3 (:d @atom)))))
+  (is (= 3 (when-let* [a 1
+                       b 2
+                       c (+ a b)
+                       d false] c))))
 
 (deftest when-some-nil-test
-  (let [atom (atom {})]
-    (when-some* [a 1
-                 b nil
-                 c 2
-                 d (+ a c)]
-      (swap! atom assoc :d d))
-    (is (nil? (:d @atom)))))
+  (is (= 3 (when-let* [a 1
+                       b 2
+                       c (+ a b)
+                       d nil] c))))
 
 (deftest when-let-test
-  (let [atom (atom {})]
-    (when-let* [a 1
-                 b 2
-                 c (+ a b)]
-      (swap! atom assoc :c c))
-    (is (= 3 (:c @atom)))))
+  (is (= 3 (when-let* [a 1
+                       b 2
+                       c (+ a b)] c))))
 
 (deftest when-let-false-test
-  (let [atom (atom {})]
-    (when-let* [a 1
-                 b 2
-                 c (+ a b)
-                 d false]
-      (swap! atom assoc :c c))
-    (is (nil? (:c @atom)))))
+  (is (nil? (when-let* [a 1
+                        b 2
+                        c (+ a b)
+                        d false] c))))
+
 
 (deftest when-let-nil-test
-  (let [atom (atom {})]
-    (when-let* [a 1
-                 b 2
-                 c (+ a b)
-                 d nil]
-      (swap! atom assoc :c c))
-    (is (nil? (:c @atom)))))
+  (is (nil? (when-let* [a 1
+                        b 2
+                        c (+ a b)
+                        d nil] c))))
