@@ -522,3 +522,45 @@
     (is (= () (merge-sort [[] []])))
     (is (= '(1 2 3 4 5 6) (merge-sort colls)))
     (is (= '(6 5 4 3 2 1) (merge-sort (flip compare) (map reverse colls))))))
+
+(deftest if-let-test
+  (is (if-let* [a (odd? 1)
+                b (even? 2)] true false))
+  (is (not (if-let* [a (even? 1)
+                     b false] true false)))
+  (is (not (if-let* [a (even? 1)
+                     b nil] true false))))
+
+(deftest if-some-test
+  (is (if-some* [a (odd? 1)
+                 b (even? 2)] true false))
+  (is (if-some* [a (even? 1)
+                 b false] true false))
+  (is (not (if-some* [a (even? 1)
+                      b nil] true false))))
+
+(deftest when-let-test
+  (is (= 3 (when-let* [a 1
+                       b 2
+                       c (+ a b)] c)))
+  (is (nil? (when-let* [a 1
+                        b 2
+                        c (+ a b)
+                        d false] c)))
+  (is (nil? (when-let* [a 1
+                        b 2
+                        c (+ a b)
+                        d nil] c))))
+
+(deftest when-some-test
+  (is (= 3 (when-some* [a 1
+                        b 2
+                        c (+ a b)] c)))
+  (is (= 3 (when-some* [a 1
+                        b 2
+                        c (+ a b)
+                        d false] c)))
+  (is (nil? (when-some* [a 1
+                         b 2
+                         c (+ a b)
+                         d nil] c))))
