@@ -524,18 +524,18 @@
     (is (= '(6 5 4 3 2 1) (merge-sort (flip compare) (map reverse colls))))))
 
 (deftest when-some-test
-  (is (= 3 (when-let* [a 1
+  (is (= 3 (when-some* [a 1
                        b 2
                        c (+ a b)] c))))
 
 (deftest when-some-false-test
-  (is (= 3 (when-let* [a 1
+  (is (= 3 (when-some* [a 1
                        b 2
                        c (+ a b)
                        d false] c))))
 
 (deftest when-some-nil-test
-  (is (= 3 (when-let* [a 1
+  (is (nil? (when-some* [a 1
                        b 2
                        c (+ a b)
                        d nil] c))))
