@@ -170,19 +170,37 @@
 (defmacro when-seq [bindings & body]
   `(if-seq ~bindings (do ~@body)))
 
-(defmacro when-some*
-  ([bindings & body]
+(defmacro if-let*
+  "Like clojure.core/if-let except supports multiple bindings."
+  ([bindings then]
+   `(if-let* ~bindings ~then nil))
+  ([bindings then else]
    (if (seq bindings)
-     `(when-some [~(first bindings) ~(second bindings)]
-        (when-some* ~(drop 2 bindings) ~@body))
-     `(do ~@body))))
+     `(if-let [~@(take 2 bindings)]
+        (if-let* [~@(drop 2 bindings)] ~then ~else)
+        ~else)
+     then)))
+
+(defmacro if-some*
+  "Like clojure.core/if-some except supports multiple bindings."
+  ([bindings then]
+   `(if-some* ~bindings ~then nil))
+  ([bindings then else]
+   (if (seq bindings)
+     `(if-some [~@(take 2 bindings)]
+        (if-some* [~@(drop 2 bindings)] ~then ~else)
+        ~else)
+     then)))
 
 (defmacro when-let*
-  ([bindings & body]
-   (if (seq bindings)
-     `(when-let [~(first bindings) ~(second bindings)]
-        (when-let* ~(drop 2 bindings) ~@body))
-     `(do ~@body))))
+  "Like clojure.core/when-let except supports multiple bindings."
+  [bindings & body]
+  `(if-let* ~bindings (do ~@body)))
+
+(defmacro when-some*
+  "Like clojure.core/when-some except supports multiple bindings."
+  [bindings & body]
+  `(if-some* ~bindings (do ~@body)))
 
 (defn not-empty? [coll]
   (boolean (seq coll)))
