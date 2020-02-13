@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/vodori/missing.svg?branch=develop)](https://travis-ci.org/vodori/missing) [![Maven metadata URL](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/vodori/missing/maven-metadata.xml.svg)](https://mvnrepository.com/artifact/com.vodori/missing)
+[![Build Status](https://travis-ci.com/vodori/missing.svg?branch=develop)](https://travis-ci.com/vodori/missing) [![Maven metadata URL](https://img.shields.io/maven-metadata/v/https/repo1.maven.org/maven2/com/vodori/missing/maven-metadata.xml.svg)](https://mvnrepository.com/artifact/com.vodori/missing)
 
 
 ### Missing
