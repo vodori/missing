@@ -8,7 +8,7 @@
             [clojure.pprint :as pprint]
             [missing.cwm :as cwm])
   (:import (java.util.concurrent TimeUnit)
-           (java.util EnumSet UUID Comparator Properties)
+           (java.util EnumSet UUID Comparator Properties Base64)
            (java.time Duration)
            (java.nio.file FileSystems)
            (java.io File)
@@ -581,14 +581,6 @@
         union (- (+ (count s1') (count s2')) inter)]
     (if (zero? union) 1 (/ inter union))))
 
-(defn dice-coefficient
-  "Returns a ratio between 0 and 1 representing the degree of overlap between sets."
-  [s1 s2]
-  (let [s1'   (set s1)
-        s2'   (set s2)
-        denom (+ (count s1') (count s2'))]
-    (if (zero? denom) 1 (/ (* 2 (|intersection| s1' s2')) denom))))
-
 (defn pp
   "Prints the argument and returns it."
   [x] (pprint/pprint x) x)
@@ -606,22 +598,19 @@
 
 (defn seek
   "Find the first element in the collection that matches pred,
-   else returns not-found. Note that using seek can be an
-   anti-pattern that leads to poor performance and you should
-   always be using indexed data structures over multiple calls
-   to seek over the same data."
+   else returns not-found. Note that using seek can lead to
+   poor performance and you should always use indexed data
+   structures instead multiple calls to seek over the same data."
   ([pred coll]
    (seek pred coll nil))
   ([pred coll not-found]
-   (reduce (fn [_ x] (if (pred x) (reduced x) not-found)) coll)))
+   (reduce (fn [nf x] (if (pred x) (reduced x) nf)) not-found coll)))
 
 (defn ^:deprecated find-first
   "Deprecated, use missing.core/seek instead."
-  ([pred coll]
-   (find-first pred coll nil))
-  ([pred coll not-found]
-   (println "missing.core/find-first is deprecated, use missing.core/seek instead.")
-   (seek pred coll not-found)))
+  [pred coll]
+  (println "missing.core/find-first is deprecated, use missing.core/seek instead.")
+  (seek pred coll))
 
 (defn dfs
   "Depth first search through a form for the first form that matches pred."
@@ -1425,18 +1414,34 @@
       (let [hex (Integer/toHexString (bit-and 0xff (aget bites counter)))]
         (recur (.append buf (left-pad hex 2 "0")) (inc counter))))))
 
-(defn string->md5-hex
-  "Hashes a string and returns the md5 checksum (hex encoded)"
-  [^String s]
-  (-> "MD5"
-      (MessageDigest/getInstance)
-      (.digest (.getBytes s))
-      (bytes->hex)))
+(defn bytes->base64
+  "Converts a byte array into a base64 encoded string."
+  [^bytes bites]
+  (.encodeToString (Base64/getEncoder) bites))
+
+(defn hex->bytes
+  "Converts a hex encoded string into a byte array."
+  [^String hex]
+  (->> (partition 2 hex)
+       (map #(apply str %))
+       (map #(Integer/parseInt % 16))
+       (map byte)
+       (into-array Byte/TYPE)))
+
+(defn base64->bytes
+  "Converts a base64 encoded string into a byte array."
+  [^String b64]
+  (.decode (Base64/getDecoder) b64))
+
+(defn md5-checksum
+  "Hashes a byte array and returns the md5 checksum (hex encoded)"
+  [^bytes bites]
+  (bytes->hex (.digest (MessageDigest/getInstance "MD5") bites)))
 
 (defmacro once
   "Runs a piece of code that evaluates only once (per ns) until the source changes."
   [& body]
-  (let [sym (symbol (string->md5-hex (pr-str &form)))]
+  (let [sym (symbol (-> (pr-str &form) (.getBytes) (md5-checksum) (bytes->hex)))]
     `(do (defonce ~sym (do ~@body)) (var-get (var ~sym)))))
 
 (defmacro defonce-protocol
