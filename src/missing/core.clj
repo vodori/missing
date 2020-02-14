@@ -604,22 +604,45 @@
   [& more]
   (conj `~(partition 2 (interleave (repeat 'not) more)) 'and))
 
-(defn find-first
-  "Find the first element in the collection that matches the pred"
-  [pred coll]
-  (first (drop-while (complement pred) coll)))
+(defn seek
+  "Find the first element in the collection that matches pred,
+   else returns not-found. Note that using seek can be an
+   anti-pattern that leads to poor performance and you should
+   always be using indexed data structures over multiple calls
+   to seek over the same data."
+  ([pred coll]
+   (seek pred coll nil))
+  ([pred coll not-found]
+   (reduce (fn [_ x] (if (pred x) (reduced x) not-found)) coll)))
+
+(defn ^:deprecated find-first
+  "Deprecated, use missing.core/seek instead."
+  ([pred coll]
+   (find-first pred coll nil))
+  ([pred coll not-found]
+   (println "missing.core/find-first is deprecated, use missing.core/seek instead.")
+   (seek pred coll not-found)))
 
 (defn dfs
   "Depth first search through a form for the first form that matches pred."
   [pred form]
-  (find-first pred (walk-seq form)))
+  (seek pred (walk-seq form)))
 
-(defn find-indexed
+(defn indexed
+  "Creates a [index item] seq of tuples."
+  [coll]
+  (zip (range) coll))
+
+(defn seek-indexed
   "Returns [index item] for the first item that matches pred."
   [pred coll]
-  (->> (map vector (range) coll)
-       (drop-while (comp (complement pred) second))
-       (first)))
+  (seek (comp pred second) (indexed coll)))
+
+(defn ^:deprecated find-indexed
+  "Returns [index item] for the first item that matches pred."
+  [pred coll]
+  (println "missing.core/find-indexed is deprecated, use missing.core/seek-indexed instead.")
+  (seek-indexed pred coll))
 
 (defn sorted-map-by-value
   "Returns a sorted map with entries sorted by values. Supply
@@ -805,6 +828,49 @@
   "Returns a tuple of [smallest largest] element in the collection."
   [coll] (extrema-by identity coll))
 
+(defn take-upto
+  "Returns a lazy sequence of successive items from coll up to and including
+  the first item for which `(pred item)` returns true."
+  ([pred]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([result] (rf result))
+       ([result x]
+        (let [result (rf result x)]
+          (if (pred x)
+            (ensure-reduced result)
+            result))))))
+  ([pred coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [x (first s)]
+         (cons x (if-not (pred x) (take-upto pred (rest s)))))))))
+
+(defn drop-upto
+  "Returns a lazy sequence of the items in coll starting *after* the first item
+  for which `(pred item)` returns true."
+  ([pred]
+   (fn [rf]
+     (let [dv (volatile! true)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result x]
+          (if @dv
+            (do (when (pred x) (vreset! dv false)) result)
+            (rf result x)))))))
+  ([pred coll]
+   (rest (drop-while (complement pred) coll))))
+
+(defn take-until
+  ([pred] (take-while (complement pred)))
+  ([pred coll] (take-while (complement pred) coll)))
+
+(defn drop-until
+  ([pred] (drop-while (complement pred)))
+  ([pred coll] (drop-while (complement pred) coll)))
+
 (defn filter-nth
   "Filters a seq based on a function of the nth position."
   [n pred coll] (filter (fn [x] (pred (nth x n))) coll))
@@ -927,9 +993,9 @@
     (binary-search check coll x)))
 
 (defn piecewise
-  "Returns a new function that will apply f to respective elements
-   across each provided collection. f should be an associative
-   function of two elements."
+  "Applies f to respective elements across each provided
+  collection. f should be an associative function of two
+  arguments."
   [f & colls]
   (cond
     (empty? colls)
@@ -1207,9 +1273,15 @@
   "Get the file extension from a filename."
   [filename] (first (re-find #"(\.[^.]*)$" filename)))
 
-(defn get-filename
+(defn basename
   "Get the filename (without extension) from a filename"
   [filename] (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
+
+(defn ^:deprecated get-filename
+  "Get the filename (without extension) from a filename"
+  [filename]
+  (println "missing.core/get-filename is deprecated. Use missing.core/basename instead.")
+  (basename filename))
 
 (defn uniqueifier
   "Returns a function that will always produce a unique name
@@ -1223,7 +1295,7 @@
         get-modified
         (fn [name]
           (let [extension (or (get-extension name) "")
-                filename  (get-filename name)
+                filename  (basename name)
                 seen      @seen-names]
             (->> (range)
                  (map #(str filename "(" (inc %) ")" extension))

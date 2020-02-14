@@ -156,11 +156,11 @@
   (is (= ".stuff" (get-extension ".stuff")))
   (is (= ".txt" (get-extension ".stuff.txt"))))
 
-(deftest get-filename-test
-  (is (= "stuff" (get-filename "stuff")))
-  (is (= "stuff.txt" (get-filename "stuff.txt.pdf")))
-  (is (= "stuff" (get-filename "stuff.")))
-  (is (= ".stuff" (get-filename ".stuff"))))
+(deftest basename-test
+  (is (= "stuff" (basename "stuff")))
+  (is (= "stuff.txt" (basename "stuff.txt.pdf")))
+  (is (= "stuff" (basename "stuff.")))
+  (is (= ".stuff" (basename ".stuff"))))
 
 (deftest not-blank?-test
   (is (not-blank? "testing"))
@@ -207,15 +207,15 @@
     (dotimes [x 10]
       (is (= (even? x) (get inverted x))))))
 
-(deftest find-first-test
+(deftest seek-test
   (let [coll [1 2 3 4 5 6 7]]
-    (is (= 4 (find-first (partial < 3) coll)))
-    (is (nil? (find-first (partial < 100) coll)))))
+    (is (= 4 (seek (partial < 3) coll)))
+    (is (nil? (seek (partial < 100) coll)))))
 
-(deftest find-indexed-test
+(deftest seek-indexed-test
   (let [coll [1 2 3 4 5 6 7]]
-    (is (= [3 4] (find-indexed (partial < 3) coll)))
-    (is (nil? (find-indexed (partial < 100) coll)))))
+    (is (= [3 4] (seek-indexed (partial < 3) coll)))
+    (is (nil? (seek-indexed (partial < 100) coll)))))
 
 (deftest indexcat-by-test
   (let [a {:keys [1 2] :a true}
@@ -524,43 +524,21 @@
     (is (= '(6 5 4 3 2 1) (merge-sort (flip compare) (map reverse colls))))))
 
 (deftest if-let-test
-  (is (if-let* [a (odd? 1)
-                b (even? 2)] true false))
-  (is (not (if-let* [a (even? 1)
-                     b false] true false)))
-  (is (not (if-let* [a (even? 1)
-                     b nil] true false))))
+  (is (if-let* [a (odd? 1) b (even? 2)] true false))
+  (is (not (if-let* [a (even? 1) b false] true false)))
+  (is (not (if-let* [a (even? 1) b nil] true false))))
 
 (deftest if-some-test
-  (is (if-some* [a (odd? 1)
-                 b (even? 2)] true false))
-  (is (if-some* [a (even? 1)
-                 b false] true false))
-  (is (not (if-some* [a (even? 1)
-                      b nil] true false))))
+  (is (if-some* [a (odd? 1) b (even? 2)] true false))
+  (is (if-some* [a (even? 1) b false] true false))
+  (is (not (if-some* [a (even? 1) b nil] true false))))
 
 (deftest when-let-test
-  (is (= 3 (when-let* [a 1
-                       b 2
-                       c (+ a b)] c)))
-  (is (nil? (when-let* [a 1
-                        b 2
-                        c (+ a b)
-                        d false] c)))
-  (is (nil? (when-let* [a 1
-                        b 2
-                        c (+ a b)
-                        d nil] c))))
+  (is (= 3 (when-let* [a 1 b 2 c (+ a b)] c)))
+  (is (nil? (when-let* [a 1 b 2 c (+ a b) d false] c)))
+  (is (nil? (when-let* [a 1 b 2 c (+ a b) d nil] c))))
 
 (deftest when-some-test
-  (is (= 3 (when-some* [a 1
-                        b 2
-                        c (+ a b)] c)))
-  (is (= 3 (when-some* [a 1
-                        b 2
-                        c (+ a b)
-                        d false] c)))
-  (is (nil? (when-some* [a 1
-                         b 2
-                         c (+ a b)
-                         d nil] c))))
+  (is (= 3 (when-some* [a 1 b 2 c (+ a b)] c)))
+  (is (= 3 (when-some* [a 1 b 2 c (+ a b) d false] c)))
+  (is (nil? (when-some* [a 1 b 2 c (+ a b) d nil] c))))
