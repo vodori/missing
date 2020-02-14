@@ -600,7 +600,7 @@
   "Find the first element in the collection that matches pred,
    else returns not-found. Note that using seek can lead to
    poor performance and you should always use indexed data
-   structures instead multiple calls to seek over the same data."
+   structures instead of multiple seeks over the same data."
   ([pred coll]
    (seek pred coll nil))
   ([pred coll not-found]

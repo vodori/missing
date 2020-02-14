@@ -7,7 +7,7 @@
   "https://github.com/vodori/missing"
 
   :license
-  {:name "MIT License" :url "http://opensource.org/licenses/MIT" :year 2019 :key "mit"}
+  {:name "MIT License" :url "http://opensource.org/licenses/MIT" :year 2020 :key "mit"}
 
   :scm
   {:name "git" :url "https://github.com/vodori/missing"}
