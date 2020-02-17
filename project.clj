@@ -39,4 +39,8 @@
   {"releases"  {:url "https://oss.sonatype.org/service/local/staging/deploy/maven2/" :creds :gpg}
    "snapshots" {:url "https://oss.sonatype.org/content/repositories/snapshots/" :creds :gpg}}
 
-  :dependencies [[org.clojure/clojure "1.10.1"]])
+  :plugins
+  [[lein-cloverage "1.1.2"]]
+
+  :dependencies
+  [[org.clojure/clojure "1.10.1"]])

@@ -1,5 +1,6 @@
-[![Build Status](https://travis-ci.com/vodori/missing.svg?branch=develop)](https://travis-ci.com/vodori/missing) [![Maven metadata URL](https://img.shields.io/maven-metadata/v/https/repo1.maven.org/maven2/com/vodori/missing/maven-metadata.xml.svg)](https://mvnrepository.com/artifact/com.vodori/missing)
-
+[![Build Status](https://travis-ci.com/vodori/missing.svg?branch=develop)](https://travis-ci.com/vodori/missing)
+[![Maven metadata URL](https://img.shields.io/maven-metadata/v/https/repo1.maven.org/maven2/com/vodori/missing/maven-metadata.xml.svg)](https://mvnrepository.com/artifact/com.vodori/missing)
+[![codecov](https://codecov.io/gh/vodori/missing/branch/develop/graph/badge.svg)](https://codecov.io/gh/vodori/missing)
 
 ### Missing
 
@@ -8,7 +9,7 @@ A utility library for Clojure of functions and macros that complement clojure.co
 ### Install
 
 ```clojure
-[com.vodori/missing "0.1.24"]
+[com.vodori/missing "0.1.25"]
 ```
 
 ### Sample usages
