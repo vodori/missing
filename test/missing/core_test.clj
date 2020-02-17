@@ -542,3 +542,8 @@
   (is (= 3 (when-some* [a 1 b 2 c (+ a b)] c)))
   (is (= 3 (when-some* [a 1 b 2 c (+ a b) d false] c)))
   (is (nil? (when-some* [a 1 b 2 c (+ a b) d nil] c))))
+
+(deftest once-and-only-once
+  (once (capture "1"))
+  (once (capture "1"))
+  (is (= ["1"] @invokes)))

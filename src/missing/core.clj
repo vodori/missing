@@ -1441,7 +1441,7 @@
 (defmacro once
   "Runs a piece of code that evaluates only once (per ns) until the source changes."
   [& body]
-  (let [sym (symbol (-> (pr-str &form) (.getBytes) (md5-checksum) (bytes->hex)))]
+  (let [sym (symbol (-> (pr-str &form) (.getBytes) (md5-checksum)))]
     `(do (defonce ~sym (do ~@body)) (var-get (var ~sym)))))
 
 (defmacro defonce-protocol
