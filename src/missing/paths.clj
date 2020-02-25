@@ -42,4 +42,4 @@
 (defn path-seq
   "Returns a sequence of [value path] tuples."
   [form]
-  (path-seq* form nil))
+  (path-seq* form []))

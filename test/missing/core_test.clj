@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all :exclude (testing)]
             [missing.core :refer :all]
             [clojure.set :as sets])
-  (:import (java.time Duration)))
+  (:import (java.time Duration)
+           (java.util Arrays)))
 
 (def invokes (atom []))
 (def capture (fn [x] (swap! invokes conj x) x))
@@ -547,3 +548,86 @@
   (once (capture "1"))
   (once (capture "1"))
   (is (= ["1"] @invokes)))
+
+(deftest ascending-by?-test
+  (let [a {:x 1 :y 4} b {:x 2 :y 3} c {:x 3 :y 2} d {:x 3 :y 1}]
+    (is (ascending-by? :x [a b c d]))
+    (is (not (ascending-by? :y [a b c d])))
+    (is (not (ascending-by? :y [a c b d])))
+    (is (ascending? [1 2 3 4 5]))
+    (is (not (ascending? [5 5 5 5 4 3])))
+    (is (ascending? [1 1 1 1 1]))))
+
+(deftest descending-by?-test
+  (let [a {:x 1 :y 4} b {:x 2 :y 3} c {:x 3 :y 2} d {:x 3 :y 1}]
+    (is (descending-by? :y [a b c d]))
+    (is (not (descending-by? :x [a b c d])))
+    (is (descending? [5 4 3 2 1]))
+    (is (not (descending? [1 1 1 2 3])))
+    (is (descending? [1 1 1 1 1]))))
+
+(deftest symmetric-difference-test
+  (let [a #{1 2 3} b #{2 3 4}]
+    (is (= #{1 4} (symmetric-difference a b)))))
+
+(deftest supermap?-test
+  (is (supermap? {:a 1 :b 2} {:b 2}))
+  (is (supermap? {:a 1 :b 2} {:a 1}))
+  (is (supermap? {:a 1 :b 2} {:a 1 :b 2}))
+  (is (not (supermap? {:a 1} {:a 1 :b 2})))
+  (is (not (supermap? {:a 1 :b 3} {:a 1 :b 2}))))
+
+(deftest submap?-test
+  (is (submap? {:b 2} {:a 1 :b 2}))
+  (is (submap? {:a 1} {:a 1 :b 2}))
+  (is (submap? {:a 1 :b 2} {:a 1 :b 2}))
+  (is (not (submap? {:a 1 :b 2} {:a 1})))
+  (is (not (submap? {:a 1 :b 2} {:a 1 :b 3}))))
+
+(deftest template-test
+  (is (= "1" (template "{test}" {:test 1})))
+  (is (= "2" (template "{test.badger}" {:test {:badger 2}})))
+  (is (= "2|3" (template "{test.badger}|{test.items.0}" {:test {:badger 2 :items [3]}})))
+  (is (= "" (template "{test.badger}" {}))))
+
+(deftest range-search-test
+  (let [a [1 10] b [11 50] c [51 60]]
+    (is (= a (range-search [a b c] 5)))
+    (is (= b (range-search [a b c] 11)))
+    (is (= b (range-search [a b c] 50)))
+    (is (= c (range-search [a b c] 51)))))
+
+(deftest stringed-test
+  (let [a 1 b 2 c 3]
+    (is (= {"a" 1 "b" 2 "c" 3}
+           (stringed a b c)))))
+
+(deftest left-pad-test
+  (is (= "0001" (left-pad "01" 4 "0"))))
+
+(deftest right-pad-test
+  (is (= "1000" (right-pad "10" 4 "0"))))
+
+(deftest if-text-test
+  (is (= 2 (if-text [s ""] 1 2)))
+  (is (= 2 (if-text [s nil] 1 2)))
+  (is (= 1 (if-text [s "test"] 1 2))))
+
+(deftest |intersection|-test
+  (is (= 1 (|intersection| #{1 2} #{2 3}))))
+
+(deftest |union|-test
+  (is (= 3 (|union| #{1 2} #{2 3}))))
+
+(deftest hex->bytes-test
+  (let [a "round-trip" bites (.getBytes a)]
+    (is (Arrays/equals bites (hex->bytes (bytes->hex bites))))))
+
+(deftest base64->bytes-test
+  (let [a "round-trip" bites (.getBytes a)]
+    (is (Arrays/equals bites (base64->bytes (bytes->base64 bites))))))
+
+(deftest read-edn-string-test
+  (let [s {:a 1 :b 2 :c {:d #{1 2 3}}}]
+    (is (= s (read-edn-string (pr-str s)))))
+  (is (tagged-literal? (read-edn-string (pr-str *ns*)))))

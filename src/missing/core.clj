@@ -13,7 +13,7 @@
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang IPersistentVector LongRange Range Var MultiFn)))
+           (clojure.lang IPersistentVector LongRange Range Var MultiFn Reversible)))
 
 (defn uuid
   "Get a uuid as string"
@@ -107,10 +107,6 @@
 (defn keep-entries
   "Map and only keep entries with non-nil keys and values."
   [f m] (->> (map-entries f m) (filter-entries some?)))
-
-(defn reverse-map
-  "Invert a map"
-  [m] (into {} (map (comp vec reverse)) m))
 
 (defn grouping->pairs
   "Turn a map of groupings into a flat sequence of pairs of key and single value."
@@ -906,6 +902,19 @@
     (.setAccessible m true)
     (.get m obj)))
 
+(defn reverse*
+  "An alternative implementation of clojure.core/reverse that
+  provides a more efficient implementation for certain types
+  of coll."
+  [coll]
+  (if (instance? Reversible coll)
+    (rseq coll)
+    (reverse coll)))
+
+(defn reverse-map
+  "Invert a map"
+  [m] (into {} (map (comp vec reverse*)) m))
+
 (defn take*
   "An alternative implementation of clojure.core/take that
    provides a more efficient implementation for certain types
@@ -1009,6 +1018,36 @@
          updater# (fn [x#] (or x# (delay ~@body)))
          updated# (swap! ~ref update-in path# updater#)]
      (force (get-in updated# path#))))
+
+(defn ascending-by?
+  "Is coll ascending according to the supplied key-fn and comparator?"
+  ([key-fn coll]
+   (ascending-by? key-fn compare coll))
+  ([key-fn comparator coll]
+   (->> (map key-fn coll)
+        (partition 2 1)
+        (map (fn [[a b]] (comparator a b)))
+        (every? (some-fn neg? zero?)))))
+
+(defn descending-by?
+  "Is coll descending according to the supplied key-fn and comparator?"
+  ([key-fn coll]
+   (descending-by? key-fn compare coll))
+  ([key-fn comparator coll]
+   (->> (map key-fn coll)
+        (partition 2 1)
+        (map (fn [[a b]] (comparator a b)))
+        (every? (some-fn pos? zero?)))))
+
+(defn ascending?
+  "Is coll ascending according to the supplied comparator?"
+  ([coll] (ascending? compare coll))
+  ([comparator coll] (ascending-by? identity comparator coll)))
+
+(defn descending?
+  "Is coll descending according to the supplied comparator?"
+  ([coll] (descending? compare coll))
+  ([comparator coll] (descending-by? identity comparator coll)))
 
 (defn merge-sort-by
   "Lazily produces a sorted sequence from many sorted input sequences according to key-fn and comp."
@@ -1240,7 +1279,7 @@
           (Duration/ofMillis duration))
         nanos
         (.toNanos duration)]
-    (loop [aggregate (array-map) [^TimeUnit this-unit & other-units] (reverse (EnumSet/allOf TimeUnit)) remainder nanos]
+    (loop [aggregate (array-map) [^TimeUnit this-unit & other-units] (reverse* (EnumSet/allOf TimeUnit)) remainder nanos]
       (let [in-unit (.convert this-unit remainder TimeUnit/NANOSECONDS)]
         (let [updated  (assoc aggregate (keyword (strings/lower-case (.name this-unit))) in-unit)
               leftover (- remainder (.convert TimeUnit/NANOSECONDS in-unit this-unit))]
@@ -1284,10 +1323,10 @@
         get-modified
         (fn [name]
           (let [extension (or (get-extension name) "")
-                filename  (basename name)
+                base      (basename name)
                 seen      @seen-names]
             (->> (range)
-                 (map #(str filename "(" (inc %) ")" extension))
+                 (map #(str base "(" (inc %) ")" extension))
                  (filter #(not (contains? seen %)))
                  (first))))]
     (fn [name]
@@ -1358,7 +1397,7 @@
 (defn index-values-by-paths
   "Returns a map of path => value at path for any data structure"
   [form]
-  (->> (paths/path-seq form) (map (comp vec reverse)) (into {})))
+  (->> (paths/path-seq form) (map (comp vec reverse*)) (into {})))
 
 (defn structural-extractor
   "Given any clojure structure, return a function that will extract
@@ -1390,22 +1429,26 @@
      false)))
 
 (defn =select
-  "Checks equality at only the positions referred to by expected. If
-   a leaf of expected is a predicate, then that predicate will be called
-   with the value found in actual, otherwise equality will be used."
-  [expected actual]
-  (loop [[[value path] & remaining :as paths] (paths/path-seq expected)]
-    (if (empty? paths)
-      true
-      (cond
-        (and (fn? value) (value (get-in actual path)))
-        (recur remaining)
-        (= value (get-in actual path))
-        (recur remaining)
-        :otherwise
-        false))))
+  "Checks data at only the positions referred to by expected. If a leaf
+   of expected is a function, then that function will be tested with the
+   value found in actual, otherwise equality will be used."
+  [expected & actuals]
+  (cond
+    (empty? actuals) true
+    (fn? expected) (every? expected actuals)
+    :otherwise
+    (loop [[[value path] & remaining :as paths] (paths/path-seq expected)]
+      (if (empty? paths)
+        true
+        (cond
+          (and (fn? value) (every? value (map (fn [actual] (if (empty? path) actual (get-in actual path))) actuals)))
+          (recur remaining)
+          (every? (partial = value) (map (fn [actual] (if (empty? path) actual (get-in actual path))) actuals))
+          (recur remaining)
+          :otherwise
+          false)))))
 
-(defn bytes->hex
+(defn ^String bytes->hex
   "Converts a byte array into a hex encoded string."
   [^bytes bites]
   (loop [buf (StringBuffer.) counter 0]
@@ -1414,12 +1457,12 @@
       (let [hex (Integer/toHexString (bit-and 0xff (aget bites counter)))]
         (recur (.append buf (left-pad hex 2 "0")) (inc counter))))))
 
-(defn bytes->base64
+(defn ^String bytes->base64
   "Converts a byte array into a base64 encoded string."
   [^bytes bites]
   (.encodeToString (Base64/getEncoder) bites))
 
-(defn hex->bytes
+(defn ^"[B" hex->bytes
   "Converts a hex encoded string into a byte array."
   [^String hex]
   (->> (partition 2 hex)
@@ -1428,12 +1471,12 @@
        (map byte)
        (into-array Byte/TYPE)))
 
-(defn base64->bytes
+(defn ^"[B" base64->bytes
   "Converts a base64 encoded string into a byte array."
   [^String b64]
   (.decode (Base64/getDecoder) b64))
 
-(defn md5-checksum
+(defn ^String md5-checksum
   "Hashes a byte array and returns the md5 checksum (hex encoded)"
   [^bytes bites]
   (bytes->hex (.digest (MessageDigest/getInstance "MD5") bites)))
