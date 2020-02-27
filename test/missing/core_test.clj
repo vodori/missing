@@ -631,3 +631,6 @@
   (let [s {:a 1 :b 2 :c {:d #{1 2 3}}}]
     (is (= s (read-edn-string (pr-str s)))))
   (is (tagged-literal? (read-edn-string (pr-str *ns*)))))
+
+(deftest tuxt-test
+  (is (= [1 2] ((tuxt inc dec) [0 3]))))

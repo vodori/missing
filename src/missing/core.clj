@@ -856,6 +856,11 @@
   ([pred] (drop-while (complement pred)))
   ([pred coll] (drop-while (complement pred) coll)))
 
+(defn tuxt
+  "Returns a new function that applies each fn against respective positions in a tuple."
+  [& fns]
+  (fn [tuple] (into [] (map #(%1 %2) fns tuple))))
+
 (defn filter-nth
   "Filters a seq based on a function of the nth position."
   [n pred coll] (filter (fn [x] (pred (nth x n))) coll))
