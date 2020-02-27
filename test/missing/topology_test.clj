@@ -1,6 +1,7 @@
 (ns missing.topology-test
-  (:require [clojure.test :refer :all])
-  (:require [missing.topology :refer :all]))
+  (:require [missing.topology :refer :all]
+            [clojure.test :refer :all])
+  (:refer-clojure :exclude (empty complement)))
 
 (deftest normalization-test
   (let [g {:a [:b :c] :b [:d]}]

@@ -253,11 +253,6 @@
               [:test 2 "one"]                                   "one"}
              (index-values-by-paths structure))))))
 
-(deftest select-structure-test
-  (let [example {:a [:b {:test [:thing [{:one :two :three 4}]]} :d]}]
-    (is (= {:a [1 {:test [4 [{:one 5, :three nil}]]} nil]}
-           (select-structure {:a [1 {:test [4 [{:one 5}]]}]} example)))))
-
 (deftest paging-test
   (let [source  (vec (range 100))
         counter (atom 0)
@@ -497,15 +492,6 @@
   (is (not (single? {:a :b})))
   (is (single? [:a]))
   (is (single? '(:a))))
-
-(deftest atomic-init!-test
-  (let [a (atom {})]
-    (is (empty? @invokes))
-    (is (= :initialized (atomic-init! a [:a] (capture :initialized))))
-    (is (= :initialized (force (get @a :a))))
-    (is (= [:initialized] @invokes))
-    (is (= :initialized (atomic-init! a [:a] (capture :initialized))))
-    (is (= [:initialized] @invokes))))
 
 (deftest fixed-point-test
   (letfn [(step [x] (Math/abs ^long x))]

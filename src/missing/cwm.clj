@@ -14,16 +14,7 @@
        (or (contains? #{'let* 'loop* 'letfn*} (first form)))))
 
 (defn walk-seq [form]
-  (letfn [(branch? [form]
-            (cond
-              (map? form) true
-              (map-entry? form) true
-              (string? form) false
-              (seqable? form) true
-              :otherwise false))
-          (children [form]
-            (seq form))]
-    (tree-seq branch? children form)))
+  (tree-seq #(and (not (string? %)) (seqable? %)) seq form))
 
 (defn walk-fun [context f form]
   (letfn [(expand [bindings impl]

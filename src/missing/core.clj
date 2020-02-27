@@ -13,11 +13,22 @@
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang IPersistentVector LongRange Range Var MultiFn Reversible)))
+           (clojure.lang IPersistentVector LongRange Range Var MultiFn Reversible MapEntry)))
 
 (defn uuid
   "Get a uuid as string"
   [] (str (UUID/randomUUID)))
+
+(defn not-empty? [coll]
+  (boolean (seq coll)))
+
+(defn not-blank? [s]
+  (not (strings/blank? s)))
+
+(defn map-entry
+  "Creates a map entry from key k and value v."
+  [k v]
+  (MapEntry. k v))
 
 (defn read-edn-string
   "Reads a string of edn and returns the parsed data. Applies all loaded data
@@ -198,50 +209,6 @@
   [bindings & body]
   `(if-some* ~bindings (do ~@body)))
 
-(defn not-empty? [coll]
-  (boolean (seq coll)))
-
-(defn not-blank? [s]
-  (not (strings/blank? s)))
-
-(defn assoc*
-  "Like assoc, but assumes associng into nil with an integer
-   key means 'I want a vector' and not 'I want a map'"
-  ([m k v]
-   (assoc (or m (if (int? k) [] {})) k v))
-  ([map key val & kvs]
-   (reduce (fn [agg [k v]] (assoc* agg k v)) (assoc* map key val) (partition 2 kvs))))
-
-(defn assoc*-in
-  "Like assoc-in but with assoc* semantics."
-  [m [k & ks] v]
-  (if ks
-    (assoc* m k (assoc*-in (get m k) ks v))
-    (assoc* m k v)))
-
-(defn update*
-  "Like update, but with assoc* semantics."
-  ([m k f]
-   (assoc* m k (f (get m k))))
-  ([m k f x]
-   (assoc* m k (f (get m k) x)))
-  ([m k f x y]
-   (assoc* m k (f (get m k) x y)))
-  ([m k f x y z]
-   (assoc* m k (f (get m k) x y z)))
-  ([m k f x y z & more]
-   (assoc* m k (apply f (get m k) x y z more))))
-
-(defn update*-in
-  "Like update-in, but with assoc* semantics."
-  ([m ks f & args]
-   (let [up (fn up [m ks f args]
-              (let [[k & ks] ks]
-                (if ks
-                  (assoc* m k (up (get m k) ks f args))
-                  (assoc* m k (apply f (get m k) args)))))]
-     (up m ks f args))))
-
 (defn fixed-point
   "Finds the fixed point of f given initial input x. Optionally
    provide a max number of iterations to attempt before returning
@@ -311,7 +278,8 @@
 
 (defn index-by
   "Index the items of a collection into a map by a key"
-  [key-fn coll] (into {} (map (juxt key-fn identity)) coll))
+  [key-fn coll]
+  (persistent! (reduce #(assoc! %1 (key-fn %2) %2) (transient {}) coll)))
 
 (def ^:dynamic *preempt*)
 
@@ -1014,16 +982,6 @@
   ([f coll] (mapcat identity (pmap f coll)))
   ([f coll & colls] (mapcat identity (apply pmap f coll colls))))
 
-(defmacro atomic-init!
-  "Used to update a reference type to acquire a 'place' and only
-   after acquiring the place does it run the code to initialize
-   the value."
-  [ref path & body]
-  `(let [path#    ~path
-         updater# (fn [x#] (or x# (delay ~@body)))
-         updated# (swap! ~ref update-in path# updater#)]
-     (force (get-in updated# path#))))
-
 (defn ascending-by?
   "Is coll ascending according to the supplied key-fn and comparator?"
   ([key-fn coll]
@@ -1364,9 +1322,7 @@
   "Like index-by except f is allowed to return a sequence of keys
   that the element should be indexed by."
   [f coll]
-  (->> coll
-       (mapcat #(map vector (f %) (repeat %)))
-       (into {})))
+  (into {} (mapcat #(map map-entry (f %) (repeat %))) coll))
 
 (defn groupcat-by
   "Like group-by except f is allowed to return a sequence of keys
@@ -1403,22 +1359,6 @@
   "Returns a map of path => value at path for any data structure"
   [form]
   (->> (paths/path-seq form) (map (comp vec reverse*)) (into {})))
-
-(defn structural-extractor
-  "Given any clojure structure, return a function that will extract
-  that same structure from data that may only share part of the
-  structure (or may have more than the original structure)."
-  [structure]
-  (let [paths (paths structure)]
-    (fn [form]
-      (letfn [(reducer [agg path]
-                (assoc*-in agg path (get-in form path)))]
-        (reduce reducer (empty structure) paths)))))
-
-(defn select-structure
-  "Like select-keys except mimics the structure provided by the second argument."
-  [m structure]
-  ((structural-extractor structure) m))
 
 (defn =ic
   "Like = but ignores casing."

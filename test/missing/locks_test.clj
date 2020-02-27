@@ -1,6 +1,6 @@
 (ns missing.locks-test
-  (:require [clojure.test :refer :all])
-  (:require [missing.locks :as locks])
+  (:require [missing.locks :as locks]
+            [clojure.test :refer :all])
   (:import (java.util UUID)))
 
 
