@@ -209,6 +209,21 @@
   [bindings & body]
   `(if-some* ~bindings (do ~@body)))
 
+(defn assoc*
+  "Like assoc, but assumes associng into nil with an integer
+   key means 'I want a vector' and not 'I want a map'"
+  ([m k v]
+   (assoc (or m (if (int? k) [] {})) k v))
+  ([map key val & kvs]
+   (reduce (fn [agg [k v]] (assoc* agg k v)) (assoc* map key val) (partition 2 kvs))))
+
+(defn assoc*-in
+  "Like assoc-in but with assoc* semantics."
+  [m [k & ks] v]
+  (if ks
+    (assoc* m k (assoc*-in (get m k) ks v))
+    (assoc* m k v))
+
 (defn fixed-point
   "Finds the fixed point of f given initial input x. Optionally
    provide a max number of iterations to attempt before returning
