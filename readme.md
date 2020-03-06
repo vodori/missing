@@ -9,7 +9,7 @@ A utility library for Clojure of functions and macros that complement clojure.co
 ### Install
 
 ```clojure
-[com.vodori/missing "0.1.26"]
+[com.vodori/missing "0.1.27"]
 ```
 
 ### Sample usages
