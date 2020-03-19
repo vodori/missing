@@ -14,7 +14,10 @@
        (or (contains? #{'let* 'loop* 'letfn*} (first form)))))
 
 (defn walk-seq [form]
-  (tree-seq #(and (not (string? %)) (seqable? %)) seq form))
+  (tree-seq #(or (and (not (string? %)) (seqable? %))
+                 (and (delay? %) (realized? %)))
+            #(if (delay? %) (list (force %)) (seq %))
+            form))
 
 (defn walk-fun [context f form]
   (letfn [(expand [bindings impl]

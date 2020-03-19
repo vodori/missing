@@ -6,7 +6,8 @@
             [missing.paths :as paths]
             [clojure.data :as data]
             [clojure.pprint :as pprint]
-            [missing.cwm :as cwm])
+            [missing.cwm :as cwm]
+            [clojure.walk :as walk])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID Comparator Properties Base64)
            (java.time Duration)
@@ -1131,6 +1132,21 @@
            not-found
            (recur sentinel m (next ks))))
        m))))
+
+(defn only
+  "Returns the only item from a collection if the collection only consists of one item, else nil."
+  [coll]
+  (when (single? coll) (first coll)))
+
+(defn touch
+  "Realizes all delays within a structure."
+  [x]
+  (walk/postwalk force x))
+
+(defn touch-realized
+  "Unwraps all realized delays within a structure."
+  [x]
+  (walk/postwalk (fn [x] (if (and (delay? x) (realized? x)) (force x) x)) x))
 
 (defn template
   "A simple string templating function that replaces {x.y.z} placeholders
