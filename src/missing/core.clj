@@ -833,12 +833,19 @@
    (rest (drop-while (complement pred) coll))))
 
 (defn take-until
+  "Like clojure.core/take-while, except inverted pred."
   ([pred] (take-while (complement pred)))
   ([pred coll] (take-while (complement pred) coll)))
 
 (defn drop-until
+  "Like clojure.core/drop-while, except inverted pred."
   ([pred] (drop-while (complement pred)))
   ([pred coll] (drop-while (complement pred) coll)))
+
+(defn tap
+  "A transducer that applies side-effects to each element."
+  ([f] (map #(do (f %) %)))
+  ([f coll] (map #(do (f %) %) coll)))
 
 (defn tuxt
   "Returns a new function that applies each fn against respective positions in a tuple."
@@ -1132,6 +1139,11 @@
            not-found
            (recur sentinel m (next ks))))
        m))))
+
+(defn flatten1
+  "Flattens one level of nested collections."
+  [coll]
+  (mapcat identity coll))
 
 (defn only
   "Returns the only item from a collection if the collection only consists of one item, else nil."
